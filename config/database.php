@@ -83,17 +83,13 @@ if (!function_exists('require_csrf')) {
     }
 }
 
-$dbHost = 'localhost';
-$dbUser = 'root';
-$dbPass = '';
-$dbName = 'paywise_payroll';
+$dbHost = getenv('DB_HOST') ?: 'localhost';
+$dbUser = getenv('DB_USER') ?: 'root';
+$dbPass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : '';
+$dbName = getenv('DB_NAME') ?: 'paywise_payroll';
+$dbPort = (int)(getenv('DB_PORT') ?: 3306);
 
-$conn = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
-// Fallback for existing installs still using the pre-rebrand database name.
-if ($conn->connect_errno && $conn->connect_errno === 1049) {
-    $dbName = 'lcc_payroll';
-    $conn = new mysqli($dbHost, $dbUser, $dbPass, $dbName);
-}
+$conn = new mysqli($dbHost, $dbUser, $dbPass, $dbName, $dbPort);
 if ($conn->connect_errno) {
     die('Database connection failed: ' . $conn->connect_error);
 }
@@ -103,24 +99,33 @@ $conn->set_charset('utf8mb4');
 
 if (!function_exists('dept_color_key')) {
     /* Department identity color key shared by every surface (directory,
-       report bars, badges). Codes win; names are the fallback so Free-text
-       department values still resolve. Unknown => 'default' (brand teal). */
+       report bars, badges). Codes win; names are the fallback so free-text
+       department values still resolve. Unknown => 'default' (brand teal).
+       Codes: CCTE, CON, COC, CELA, CBA, CITHM, OPS, FIN, HR, IT, SALES, SUPPORT. */
     function dept_color_key(?string $code, ?string $name): string
     {
         $codeKey = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string)$code));
         $byCode = [
-            'BSA' => 'bsa', 'CCTE' => 'ccte', 'CCJE' => 'ccje',
-            'CBA' => 'cba', 'CITHM' => 'cithm', 'CITM' => 'cithm',
-            'CON' => 'nursing', 'CELA' => 'cela',
+            'OPS' => 'ops', 'FIN' => 'fin', 'HR' => 'hr',
+            'IT' => 'it', 'SALES' => 'sales', 'SUPPORT' => 'support',
+            'CCTE' => 'it', 'CON' => 'hr', 'COC' => 'ops',
+            'CELA' => 'fin', 'CBA' => 'sales', 'CITHM' => 'support',
+            'CCJE' => 'ops',
         ];
         if (isset($byCode[$codeKey])) return $byCode[$codeKey];
         $n = strtoupper((string)$name);
-        if (strpos($n, 'NURSING') !== false) return 'nursing';
-        if (strpos($n, 'COMPUTING') !== false) return 'ccte';
-        if (strpos($n, 'CRIMINAL') !== false) return 'ccje';
-        if (strpos($n, 'BUSINESS') !== false) return 'cba';
-        if (strpos($n, 'TOURISM') !== false || strpos($n, 'HOSPITALITY') !== false) return 'cithm';
-        if (strpos($n, 'EDUCATION') !== false || strpos($n, 'LIBERAL') !== false) return 'cela';
+        if (strpos($n, 'COMPUTING') !== false || strpos($n, 'ENGINEERING') !== false) return 'it';
+        if (strpos($n, 'NURSING') !== false) return 'hr';
+        if (strpos($n, 'CRIMINOLOGY') !== false || strpos($n, 'CRIMINAL') !== false) return 'ops';
+        if (strpos($n, 'EDUCATION') !== false || strpos($n, 'LIBERAL') !== false) return 'fin';
+        if (strpos($n, 'BUSINESS') !== false || strpos($n, 'ACCOUNTANCY') !== false) return 'sales';
+        if (strpos($n, 'TOURISM') !== false || strpos($n, 'HOSPITALITY') !== false) return 'support';
+        if (strpos($n, 'OPERATIONS') !== false) return 'ops';
+        if (strpos($n, 'FINANCE') !== false || strpos($n, 'ACCOUNTING') !== false) return 'fin';
+        if (strpos($n, 'HUMAN RESOURCES') !== false || $n === 'HR') return 'hr';
+        if (strpos($n, 'INFORMATION TECHNOLOGY') !== false) return 'it';
+        if (strpos($n, 'SALES') !== false || strpos($n, 'MARKETING') !== false) return 'sales';
+        if (strpos($n, 'SUPPORT') !== false || strpos($n, 'CUSTOMER') !== false) return 'support';
         return 'default';
     }
 }

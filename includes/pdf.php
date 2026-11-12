@@ -40,7 +40,7 @@ function pdf_header(FPDF $pdf, string $title, string $subtitle = ''): void
     $pdf->SetXY(47, 12);
     $pdf->SetFont('Arial', 'B', 16);
     $pdf->SetTextColor(6, 59, 70);
-    $pdf->Cell(0, 7, pdf_text('PAYWISE'), 0, 1, 'L');
+    $pdf->Cell(0, 7, pdf_text('LIPA CITY COLLEGES'), 0, 1, 'L');
 
     $pdf->SetX(47);
     $pdf->SetFont('Arial', 'B', 10);

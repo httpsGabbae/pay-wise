@@ -168,16 +168,43 @@ input, select, textarea,
   font-size: var(--t-foot) !important;
   line-height: 1.5 !important;
 }
-/* Caption / eyebrow — single uniform micro-style */
-.eyebrow, .table th, .stat-label, .kpi-label,
-.tutorial-label, .dossier-kicker, .record-field span,
-.preview-field span, .pulse-badge, .analytics-chip,
-.salary-amount span, .salary-stat span, .month-summary-grid span {
-  font-size: var(--t-eyebrow) !important;
+/* Caption / table headers — restrained, scannable */
+.eyebrow {
+  display: none !important;
+}
+.table th, .pulse-badge, .analytics-chip {
+  font-size: 11px !important;
   line-height: 1.4 !important;
-  letter-spacing: 0.09em !important;
-  font-weight: 800 !important;
+  letter-spacing: 0.04em !important;
+  font-weight: 700 !important;
   text-transform: uppercase !important;
+}
+.stat-label, .kpi-label, .dossier-kicker, .record-field span,
+.preview-field span, .salary-amount span, .salary-stat span, .month-summary-grid span {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  letter-spacing: -0.005em !important;
+  font-weight: 600 !important;
+  text-transform: none !important;
+}
+.count-pill {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+  line-height: 1.2 !important;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(15, 159, 154, 0.12);
+  color: #0b7a75;
+  vertical-align: middle;
+  margin-left: 6px;
+  font-variant-numeric: tabular-nums;
+}
+body.dark-mode .count-pill {
+  background: rgba(45, 212, 191, 0.16);
+  color: #5eead4;
 }
 /* Numbers — tabular, tight */
 .stat-number, .kpi strong, .donut strong,
@@ -192,8 +219,15 @@ input, select, textarea,
 
 /* ——— APP SHELL ——— */
 .content {
-  padding: 28px 30px 56px !important;
+  padding: 22px 28px 48px !important;
   animation: apple-page-in var(--dur-med) var(--ease-apple) both;
+}
+.page-heading {
+  margin-bottom: 16px !important;
+}
+.page-heading p {
+  margin-top: 3px !important;
+  color: var(--muted) !important;
 }
 @keyframes apple-page-in {
   from { opacity: 0; transform: translateY(10px); }
@@ -312,12 +346,7 @@ input, select, textarea,
 }
 .stat, .kpi { position: relative; overflow: hidden; }
 .stat::after, .kpi::after {
-  content: "";
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 2px;
-  background: linear-gradient(90deg, #0f9f9a, #5eead4, transparent);
-  opacity: 0.7;
+  display: none !important;
 }
 .stat-icon, .quick-icon, .pulse-icon, .report-stat-icon {
   border-radius: 11px !important;
@@ -398,12 +427,19 @@ input:focus, select:focus, textarea:focus {
   box-shadow: 0 0 0 4px rgba(15, 159, 154, 0.14) !important;
 }
 .field label, .form-body label, .toolbar label,
-.attendance-filters label, #changePasswordForm label {
-  font-size: var(--t-cap) !important;
-  letter-spacing: 0.07em !important;
-  text-transform: uppercase !important;
-  font-weight: 800 !important;
-  color: #5b737a !important;
+.attendance-filters label, #changePasswordForm label,
+.portal-info-grid label, .portal-form label {
+  font-size: 12.5px !important;
+  letter-spacing: -0.005em !important;
+  text-transform: none !important;
+  font-weight: 600 !important;
+  color: #3d555d !important;
+}
+.nav-section {
+  text-transform: none !important;
+  letter-spacing: 0.01em !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
 }
 
 /* ——— TABLES: wayfinding + density ——— */
@@ -1038,14 +1074,13 @@ input[type="file"] { padding: 8px 12px !important; height: auto !important; min-
   --info: #2f7fc4; --info-soft: rgba(47, 127, 196, 0.12);
   --violet: #7c5fc0; --violet-soft: rgba(124, 95, 192, 0.13);
   --neutral: #64777d; --neutral-soft: rgba(100, 119, 125, 0.14);
-  /* Named department identity hues (one meaning per department) */
-  --c-bsa: #c2920a; --c-bsa-soft: rgba(194, 146, 10, 0.15);
-  --c-ccte: #cf6f2e; --c-ccte-soft: rgba(207, 111, 46, 0.14);
-  --c-ccje: #d63d3d; --c-ccje-soft: rgba(214, 61, 61, 0.12);
-  --c-cba: #2f7fc4; --c-cba-soft: rgba(47, 127, 196, 0.13);
-  --c-cithm: #d63d3d; --c-cithm-soft: rgba(214, 61, 61, 0.12);
-  --c-nursing: #2f9e68; --c-nursing-soft: rgba(47, 158, 104, 0.13);
-  --c-cela: #7c5fc0; --c-cela-soft: rgba(124, 95, 192, 0.14);
+  /* Named department identity hues (one meaning per department, corporate) */
+  --c-ops: #c2920a; --c-ops-soft: rgba(194, 146, 10, 0.15);
+  --c-fin: #2f7fc4; --c-fin-soft: rgba(47, 127, 196, 0.13);
+  --c-hr: #2f9e68; --c-hr-soft: rgba(47, 158, 104, 0.13);
+  --c-it: #cf6f2e; --c-it-soft: rgba(207, 111, 46, 0.14);
+  --c-sales: #d63d3d; --c-sales-soft: rgba(214, 61, 61, 0.12);
+  --c-support: #7c5fc0; --c-support-soft: rgba(124, 95, 192, 0.14);
   --c-default: #0f9f9a; --c-default-soft: rgba(15, 159, 154, 0.13);
 }
 body.dark-mode {
@@ -1055,8 +1090,8 @@ body.dark-mode {
   --info: #6ea8e0; --info-soft: rgba(110, 168, 224, 0.15);
   --violet: #a98fe0; --violet-soft: rgba(169, 143, 224, 0.16);
   --neutral: #9fb3b8; --neutral-soft: rgba(159, 179, 184, 0.16);
-  --c-bsa: #e3b341; --c-ccte: #e08a4c; --c-ccje: #ef6b6b; --c-cba: #6ea8e0;
-  --c-cithm: #ef6b6b; --c-nursing: #4cc38a; --c-cela: #a98fe0; --c-default: #2dd4bf;
+  --c-ops: #e3b341; --c-fin: #6ea8e0; --c-hr: #4cc38a; --c-it: #e08a4c;
+  --c-sales: #ef6b6b; --c-support: #a98fe0; --c-default: #2dd4bf;
 }
 
 /* Badges speak their status */

@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
+require_role('superadmin', 'hr');
 require_once __DIR__ . '/../includes/layout.php';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'delete') {
@@ -52,36 +53,18 @@ $stmt->execute();
 $result = $stmt->get_result();
 $employees = [];
 while ($row = $result->fetch_assoc()) $employees[] = $row;
-
-$activeCount = 0;
-$departmentCount = [];
-$statusCount = [];
-foreach ($employees as $employee) {
-    if ($employee['employment_status'] === 'Regular') $activeCount++;
-    $department = trim((string)$employee['department']);
-    if ($department !== '') $departmentCount[$department] = ($departmentCount[$department] ?? 0) + 1;
-    $status = $employee['employment_status'] ?: 'Unknown';
-    $statusCount[$status] = ($statusCount[$status] ?? 0) + 1;
-}
-arsort($departmentCount);
-$topDepartment = $departmentCount ? array_key_first($departmentCount) : 'No department yet';
-
-$recent = $conn->query("SELECT employee_no,first_name,last_name,department,created_at FROM employees ORDER BY created_at DESC LIMIT 3");
-$recentEmployees = [];
-if ($recent) while ($r = $recent->fetch_assoc()) $recentEmployees[] = $r;
 ?>
 <!doctype html>
 <html lang="en">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- FAVICON: Put your favicon file at /assets/favicon.png -->
-<link rel="icon" type="image/png" href="../assets/favicon.png">
-    <title>Paywise</title>
-    <link rel="stylesheet" href="../assets/css/app.css?v=20260909-rail4">
-    <link rel="stylesheet" href="../assets/css/apple-system.css?v=20260916-apple9">
-    <script src="../assets/js/app.js?v=20260916-rail5" defer></script>
-    <script src="../assets/js/apple-motion.js?v=20260916-apple1" defer></script>
+    <link rel="icon" type="image/png" href="../assets/favicon.png?v=lcc1">
+    <title>Lipa City Colleges · Employees</title>
+    <link rel="stylesheet" href="../assets/css/app.css?v=20261112-clean1">
+    <link rel="stylesheet" href="../assets/css/apple-system.css?v=20261112-clean1">
+    <script src="../assets/js/app.js?v=20261112-clean1" defer></script>
+    <script src="../assets/js/apple-motion.js?v=20261112-clean1" defer></script>
 </head>
 <body>
 <div class="app">
@@ -91,60 +74,51 @@ if ($recent) while ($r = $recent->fetch_assoc()) $recentEmployees[] = $r;
         <div class="content">
             <div class="page-heading">
                 <div>
-                    <div class="eyebrow">Employee Directory</div>
-                    <h1>All Employees</h1>
-                    <p>Keep the main directory focused. Sensitive compensation details stay behind the Salary action.</p>
+                    <h1>Employees <span class="count-pill"><?php echo count($employees); ?></span></h1>
                 </div>
                 <div class="print-tools">
-                    <button type="button" class="btn btn-secondary" onclick="window.print()"><?php echo ui_icon('printer'); ?> Print List</button>
-                    <a class="btn btn-primary" href="personalinfo.php?mode=new"><?php echo ui_icon('plus'); ?> Add Employee</a>
+                    <button type="button" class="btn btn-secondary" onclick="window.print()"><?php echo ui_icon('printer'); ?> Print</button>
+                    <a class="btn btn-primary" href="personalinfo.php?mode=new"><?php echo ui_icon('plus'); ?> Add employee</a>
                 </div>
             </div>
 
-            <?php if (isset($_GET['deleted'])): ?><div class="notice ok">Employee deleted successfully.</div><?php endif; ?>
-            <?php if (isset($_GET['error']) && $_GET['error'] === 'notfound'): ?><div class="notice err">The employee could not be found.</div><?php endif; ?>
+            <?php if (isset($_GET['deleted'])): ?><div class="notice ok">Employee deleted.</div><?php endif; ?>
+            <?php if (isset($_GET['error']) && $_GET['error'] === 'notfound'): ?><div class="notice err">Employee not found.</div><?php endif; ?>
 
             <section class="card" style="overflow:hidden">
                 <form class="toolbar" method="get">
-                    <div><label>Search</label><div class="input-icon-wrap"><?php echo ui_icon('search'); ?><input name="search" value="<?php echo e($search); ?>" placeholder="Name, employee ID, position, or department"></div></div>
-                    <div><label>Search By</label><select name="filter">
-                        <option value="name" <?php echo $filter === 'name' ? 'selected' : ''; ?>>Name / Employee ID</option>
+                    <div><label>Search</label><div class="input-icon-wrap"><?php echo ui_icon('search'); ?><input name="search" value="<?php echo e($search); ?>" placeholder="Name, ID, position, or department"></div></div>
+                    <div><label>Filter by</label><select name="filter">
+                        <option value="name" <?php echo $filter === 'name' ? 'selected' : ''; ?>>Name / ID</option>
                         <option value="position" <?php echo $filter === 'position' ? 'selected' : ''; ?>>Position</option>
                         <option value="department" <?php echo $filter === 'department' ? 'selected' : ''; ?>>Department</option>
                     </select></div>
                     <button class="btn btn-primary" type="submit"><?php echo ui_icon('search'); ?> Search</button>
-                    <a class="btn btn-secondary" href="employees.php">Clear</a>
+                    <?php if ($search !== ''): ?><a class="btn btn-secondary" href="employees.php">Clear</a><?php endif; ?>
                 </form>
-                <div class="card-head">
-                    <div>
-                        <h2>Employee List</h2>
-                        <p><?php echo count($employees); ?> employee<?php echo count($employees) === 1 ? '' : 's'; ?> found.</p>
-                    </div>
-                    <div class="table-legend"><span><?php echo ui_icon('eye'); ?> View</span><span><?php echo ui_icon('wallet'); ?> Salary</span><span><?php echo ui_icon('pencil'); ?> Edit</span><span><?php echo ui_icon('trash'); ?> Delete</span></div>
-                </div>
                 <div class="table-wrap">
                     <table class="table employee-table">
-                        <thead><tr><th>Employee</th><th>Employee ID</th><th>Department</th><th>Position</th><th>Status</th><th class="action-col">Actions</th></tr></thead>
+                        <thead><tr><th>Employee</th><th>ID</th><th>Department</th><th>Position</th><th>Status</th><th class="action-col">Actions</th></tr></thead>
                         <tbody>
                         <?php if (!$employees): ?>
-                            <tr><td colspan="6" class="empty">No employee matched your search.</td></tr>
+                            <tr><td colspan="6" class="empty">No matching employees.</td></tr>
                         <?php else: foreach ($employees as $row): ?>
                             <tr>
                                 <td><div class="person-cell">
                                     <?php if (!empty($row['photo_path'])): ?><img class="list-photo" src="../<?php echo e(ltrim($row['photo_path'], '/')); ?>" alt="">
                                     <?php else: ?><div class="list-avatar"><?php echo e(strtoupper(substr($row['first_name'], 0, 1) . substr($row['last_name'], 0, 1))); ?></div><?php endif; ?>
-                                    <div><strong><?php echo e(employee_full_name_last_first($row)); ?></strong><div class="mini"><?php echo e($row['employment_status']); ?></div></div>
+                                    <div><strong><?php echo e(employee_full_name_last_first($row)); ?></strong></div>
                                 </div></td>
                                 <td><span class="employee-no"><?php echo e($row['employee_no']); ?></span></td>
-                                <td><?php echo e($row['department'] ?: 'Not assigned'); ?></td>
-                                <td><?php echo e($row['position'] ?: 'Not assigned'); ?></td>
+                                <td><?php echo e($row['department'] ?: '—'); ?></td>
+                                <td><?php echo e($row['position'] ?: '—'); ?></td>
                                 <td><span class="badge <?php echo ['Regular' => 'badge-ok', 'Probationary' => 'badge-info', 'Contractual' => 'badge-violet', 'Part-Time' => 'badge-neutral'][$row['employment_status']] ?? 'badge-neutral'; ?>"><?php echo e($row['employment_status']); ?></span></td>
                                 <td class="action-col">
                                     <div class="icon-actions">
-                                        <button type="button" class="icon-action view" title="View employee record" aria-label="View employee record" onclick="openEmployeePreview(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('eye'); ?></button>
-                                        <button type="button" class="icon-action salary" title="View salary information" aria-label="View salary information" onclick="openSalaryModal(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('wallet'); ?></button><form method="post" action="../employee/login.php" target="_blank" style="display:inline"><?php echo csrf_field(); ?><input type="hidden" name="action" value="admin_preview"><input type="hidden" name="employee_no" value="<?php echo e($row['employee_no']); ?>"><button type="submit" class="icon-action" title="Open employee portal" aria-label="Open employee portal">↗</button></form>
-                                        <a class="icon-action edit" title="Edit employee" aria-label="Edit employee" href="personalinfo.php?edit=<?php echo (int)$row['employee_id']; ?>"><?php echo ui_icon('pencil'); ?></a>
-                                        <form method="post" action="employees.php" style="display:inline" onsubmit="return confirm('Delete this employee? This cannot be undone.')"><?php echo csrf_field(); ?><input type="hidden" name="action" value="delete"><input type="hidden" name="employee_id" value="<?php echo (int)$row['employee_id']; ?>"><button type="submit" class="icon-action delete" title="Delete employee" aria-label="Delete employee"><?php echo ui_icon('trash'); ?></button></form>
+                                        <button type="button" class="icon-action view" title="View record" aria-label="View record" onclick="openEmployeePreview(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('eye'); ?></button>
+                                        <button type="button" class="icon-action salary" title="Compensation" aria-label="Compensation" onclick="openSalaryModal(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('wallet'); ?></button><form method="post" action="../employee/login.php" target="_blank" style="display:inline"><?php echo csrf_field(); ?><input type="hidden" name="action" value="admin_preview"><input type="hidden" name="employee_no" value="<?php echo e($row['employee_no']); ?>"><button type="submit" class="icon-action" title="Open portal" aria-label="Open portal">↗</button></form>
+                                        <a class="icon-action edit" title="Edit" aria-label="Edit" href="personalinfo.php?edit=<?php echo (int)$row['employee_id']; ?>"><?php echo ui_icon('pencil'); ?></a>
+                                        <form method="post" action="employees.php" style="display:inline" onsubmit="return confirm('Delete this employee? This cannot be undone.')"><?php echo csrf_field(); ?><input type="hidden" name="action" value="delete"><input type="hidden" name="employee_id" value="<?php echo (int)$row['employee_id']; ?>"><button type="submit" class="icon-action delete" title="Delete" aria-label="Delete"><?php echo ui_icon('trash'); ?></button></form>
                                     </div>
                                 </td>
                             </tr>
@@ -153,41 +127,21 @@ if ($recent) while ($r = $recent->fetch_assoc()) $recentEmployees[] = $r;
                     </table>
                 </div>
             </section>
-
-            <section class="directory-pulse">
-                <div class="pulse-main card">
-                    <div class="card-head"><div><div class="eyebrow">Directory Pulse</div><h2>What needs attention?</h2><p>A quick operational snapshot so the space below the directory is useful instead of empty.</p></div><div class="pulse-badge"><?php echo ui_icon('trend'); ?> Live</div></div>
-                    <div class="pulse-grid">
-                        <div class="pulse-stat"><span class="pulse-icon"><?php echo ui_icon('users'); ?></span><div><strong><?php echo count($employees); ?></strong><span>Total employees</span></div></div>
-                        <div class="pulse-stat"><span class="pulse-icon"><?php echo ui_icon('shield'); ?></span><div><strong><?php echo $activeCount; ?></strong><span>Regular staff</span></div></div>
-                        <div class="pulse-stat"><span class="pulse-icon"><?php echo ui_icon('dashboard'); ?></span><div><strong><?php echo count($departmentCount); ?></strong><span>Departments</span></div></div>
-                        <div class="pulse-stat"><span class="pulse-icon"><?php echo ui_icon('users'); ?></span><div><strong><?php echo e($topDepartment); ?></strong><span>Largest department</span></div></div>
-                    </div>
-                </div>
-                <div class="recent-card card">
-                    <div class="card-head"><div><div class="eyebrow">Recently Added</div><h2>New employee records</h2></div></div>
-                    <div class="recent-list">
-                        <?php if (!$recentEmployees): ?><div class="empty">No recent records.</div><?php else: foreach ($recentEmployees as $recent): ?>
-                            <div class="recent-row"><div class="recent-avatar"><?php echo e(strtoupper(substr($recent['first_name'],0,1).substr($recent['last_name'],0,1))); ?></div><div><strong><?php echo e($recent['last_name'].', '.$recent['first_name']); ?></strong><span><?php echo e($recent['employee_no']); ?> · <?php echo e($recent['department'] ?: 'No department'); ?></span></div><time><?php echo e(date('M d', strtotime($recent['created_at']))); ?></time></div>
-                        <?php endforeach; endif; ?>
-                    </div>
-                </div>
-            </section>
         </div>
     </main>
 </div>
 
 <div id="employeePreviewModal" class="detail-modal-overlay" aria-hidden="true">
     <div class="detail-modal" role="dialog" aria-modal="true" aria-labelledby="employeePreviewTitle">
-        <div class="detail-modal-head"><div><div class="eyebrow">OFFICIAL RECORD</div><h2 id="employeePreviewTitle">Employee Record</h2></div><div class="modal-head-actions"><button type="button" class="icon-action print" title="Print employee record" aria-label="Print employee record" onclick="printEmployeePreview()"><?php echo ui_icon('printer'); ?></button><button type="button" class="modal-icon-close" onclick="closeEmployeePreview()" aria-label="Close"><?php echo ui_icon('close'); ?></button></div></div>
-        <div id="employeePreviewBody" class="detail-modal-body"><div class="preview-loading"><span class="spinner"></span> Loading employee record…</div></div>
+        <div class="detail-modal-head"><h2 id="employeePreviewTitle">Employee Record</h2><div class="modal-head-actions"><button type="button" class="icon-action print" title="Print" aria-label="Print" onclick="printEmployeePreview()"><?php echo ui_icon('printer'); ?></button><button type="button" class="modal-icon-close" onclick="closeEmployeePreview()" aria-label="Close"><?php echo ui_icon('close'); ?></button></div></div>
+        <div id="employeePreviewBody" class="detail-modal-body"><div class="preview-loading"><span class="spinner"></span> Loading…</div></div>
     </div>
 </div>
 
 <div id="salaryModal" class="detail-modal-overlay" aria-hidden="true">
     <div class="detail-modal salary-modal" role="dialog" aria-modal="true" aria-labelledby="salaryModalTitle">
-        <div class="detail-modal-head"><div><div class="eyebrow">PRIVATE COMPENSATION</div><h2 id="salaryModalTitle">Salary Information</h2></div><button type="button" class="modal-icon-close" onclick="closeSalaryModal()" aria-label="Close"><?php echo ui_icon('close'); ?></button></div>
-        <div id="salaryModalBody" class="detail-modal-body"><div class="preview-loading"><span class="spinner"></span> Loading compensation details…</div></div>
+        <div class="detail-modal-head"><h2 id="salaryModalTitle">Compensation</h2><button type="button" class="modal-icon-close" onclick="closeSalaryModal()" aria-label="Close"><?php echo ui_icon('close'); ?></button></div>
+        <div id="salaryModalBody" class="detail-modal-body"><div class="preview-loading"><span class="spinner"></span> Loading…</div></div>
     </div>
 </div>
 

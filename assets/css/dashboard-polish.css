@@ -1,0 +1,175 @@
+/* ==========================================================================
+   Paywise — Dashboard anti-slop overrides (5 fixes to AI slop in dashboards)
+   --------------------------------------------------------------------------
+   Loads LAST and ONLY on role dashboards, so every rule below is
+   dashboard-scoped by construction. Nothing else in the app is affected.
+
+   The five fixes:
+   1. One role workspace per role (superadmin = System control center,
+      finance = Payroll pipeline, hr = People operations, employee = My work
+      today) — one decision per view, never the same dashboard for everyone.
+   2. Decorative gradients -> flat fills (body washes + glow shadows gone).
+      Flat surfaces only; color is semantic (green good, amber needs eyes).
+   3. Oversized radii      -> capped at 10px on dashboard surfaces.
+   4. Colorful icon blobs -> monochrome; color reserved for status (.ok/.warn).
+      No eyebrow labels or vague SaaS copy — direct task labels (.dash-kicker).
+   5. Card-in-card rows    -> one sectioned list with hairline dividers.
+      Every number links to its source; empty states carry the next action.
+
+   Role workspaces share this flat discipline: all surfaces use var(--card) /
+   var(--line) / var(--text) / var(--muted), which already ship dark twins
+   in app.css — no separate dark palette is introduced here. Explicit
+   body.dark-mode rules below only cover flat rgba tints.
+   ========================================================================== */
+
+/* ——— Fix 4: direct task kicker replaces eyebrow labels ——— */
+.dash-kicker {
+  margin: 0 0 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  color: var(--muted);
+}
+.dash-empty {
+  margin: 10px 0 0;
+  font-size: 12px;
+  color: var(--muted);
+}
+.dash-empty a {
+  font-weight: 800;
+}
+
+/* ——— Fix 2: flat background. Kills the two radial teal washes ——— */
+body {
+  background: var(--bg) !important;
+}
+
+/* ——— Fix 2 (cont.): no glow shadows anywhere on the dashboard ——— */
+.dash-grid .card,
+.dash-rows .dash-row:hover {
+  box-shadow: var(--shadow) !important;
+}
+.sidebar .nav-link.active {
+  box-shadow: none !important;
+}
+
+/* ——— Fix 1: greeting is a header, not a hero card ——— */
+.dash-greet {
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+  padding: 4px 2px 16px !important;
+  margin-bottom: 4px !important;
+}
+.dash-greet h1 {
+  font-size: 22px !important;
+  margin: 4px 0 !important;
+}
+
+/* ——— Fix 3: radius cap ——— */
+.dash-grid .card {
+  border-radius: 10px !important;
+}
+.dash-row-icon {
+  border-radius: 8px !important;
+}
+
+/* ——— Fix 4: monochrome row icons; .ok / .warn keep semantic color ——— */
+.dash-row-icon {
+  background: rgba(23, 50, 59, 0.07) !important;
+  color: var(--text) !important;
+}
+body.dark-mode .dash-row-icon {
+  background: rgba(255, 255, 255, 0.07) !important;
+  color: var(--text) !important;
+}
+
+/* ——— Fix 5: three stacked cards -> one sectioned list ——— */
+.dash-rows {
+  gap: 0 !important;
+  background: var(--card);
+  border: 1px solid var(--line);
+  border-radius: 10px !important;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+  align-content: start;
+}
+.dash-rows .dash-row {
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+}
+.dash-rows .dash-row + .dash-row {
+  border-top: 1px solid var(--line) !important;
+}
+/* Calm hover: tint instead of lift + shadow */
+.dash-rows .dash-row:hover {
+  transform: none !important;
+  box-shadow: none !important;
+  background: rgba(15, 159, 154, 0.06) !important;
+}
+body.dark-mode .dash-rows .dash-row:hover {
+  background: rgba(45, 212, 191, 0.08) !important;
+}
+.dash-rows .dash-row:active {
+  transform: none !important;
+}
+
+/* ——— Keep the existing entrance + reduced-motion contracts ——— */
+.dash-greet,
+.dash-employees,
+.dash-rows {
+  animation: apple-rise 0.5s var(--ease-apple) backwards;
+}
+.dash-employees { animation-delay: 0.08s; }
+.dash-rows { animation-delay: 0.12s; }
+@media (prefers-reduced-motion: reduce) {
+  .dash-greet, .dash-employees, .dash-rows { animation: none !important; }
+}
+
+/* ——— Mobile keeps the stacked behavior, header stays compact ——— */
+@media (max-width: 900px) {
+  .dash-greet {
+    padding: 4px 2px 14px !important;
+  }
+}
+
+/* ——— Mobile UI: thumb-reach targets, fluid type, no overflow at 360px ——— */
+@media (max-width: 480px) {
+  .content {
+    padding: 16px 14px 48px !important;
+  }
+  .dash-greet h1 {
+    font-size: 20px !important;
+  }
+  /* Stack CTAs full-width with a real 44px touch target */
+  .dash-greet-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .dash-greet-actions .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+  /* Fluid hero number: fits 360px even with long peso figures */
+  .dash-big {
+    font-size: clamp(36px, 12vw, 56px) !important;
+  }
+  .dash-employees {
+    padding: 20px 18px 18px !important;
+  }
+  /* Taller rows, breathing room, no clipped two-line text */
+  .dash-rows .dash-row {
+    min-height: 60px;
+    padding: 14px 16px !important;
+    gap: 12px;
+  }
+  .dash-row-text small {
+    overflow-wrap: anywhere;
+  }
+  .dash-chev {
+    font-size: 20px;
+  }
+}

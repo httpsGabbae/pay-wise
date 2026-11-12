@@ -6,6 +6,61 @@ if (!isset($_SESSION['admin_id'])) {
     exit;
 }
 
+/* Role-based access. Roles: superadmin (everything + accounts),
+   finance (payroll, salary, reports), hr (people + attendance, payroll
+   masked). Unknown/missing role => least privilege (deny). */
+if (!function_exists('admin_role')) {
+    function admin_role(): string
+    {
+        $role = $_SESSION['admin_role'] ?? '';
+        if (in_array($role, ['superadmin', 'finance', 'hr'], true)) {
+            return $role;
+        }
+        // Backfill for sessions created before roles existed.
+        global $conn;
+        if (isset($conn) && isset($_SESSION['admin_id'])) {
+            $stmt = $conn->prepare('SELECT role, is_active FROM admins WHERE admin_id=? LIMIT 1');
+            if ($stmt) {
+                $id = (int)$_SESSION['admin_id'];
+                $stmt->bind_param('i', $id);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                if ($row && (int)$row['is_active'] === 1 && in_array($row['role'], ['superadmin', 'finance', 'hr'], true)) {
+                    $_SESSION['admin_role'] = $row['role'];
+                    return $row['role'];
+                }
+            }
+        }
+        return '';
+    }
+}
+
+if (!function_exists('require_role')) {
+    function require_role(string ...$roles): void
+    {
+        $role = admin_role();
+        if ($role === '' || !in_array($role, $roles, true)) {
+            http_response_code(403);
+            exit('Access denied for your account role.');
+        }
+    }
+}
+
+if (!function_exists('is_superadmin')) {
+    function is_superadmin(): bool
+    {
+        return admin_role() === 'superadmin';
+    }
+}
+
+if (!function_exists('role_label')) {
+    function role_label(?string $role = null): string
+    {
+        $map = ['superadmin' => 'Superadmin', 'finance' => 'Finance', 'hr' => 'HR'];
+        return $map[$role ?? admin_role()] ?? 'Unknown';
+    }
+}
+
 if (!function_exists('e')) {
     function e($value): string
     {

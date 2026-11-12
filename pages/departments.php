@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
+require_role('superadmin', 'hr');
 require_once __DIR__ . '/../includes/layout.php';
 
 $error = '';
@@ -168,15 +169,15 @@ function department_value(?array $department, string $key): string
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- FAVICON: Put your favicon file at /assets/favicon.png -->
-<link rel="icon" type="image/png" href="../assets/favicon.png">
-    <title>Paywise</title>
+<link rel="icon" type="image/png" href="../assets/favicon.png?v=lcc1">
+    <title>Lipa City Colleges · Departments</title>
     <link rel="stylesheet" href="../assets/css/app.css?v=20260909-rail4">
-    <link rel="stylesheet" href="../assets/css/apple-system.css?v=20260916-apple9">
-    <script src="../assets/js/app.js?v=20260916-rail5" defer></script>
-    <script src="../assets/js/apple-motion.js?v=20260916-apple1" defer></script>
+    <link rel="stylesheet" href="../assets/css/apple-system.css?v=20261112-clean1">
+    <script src="../assets/js/app.js?v=20261112-clean1" defer></script>
+    <script src="../assets/js/apple-motion.js?v=20261112-clean1" defer></script>
 <style>
 .department-collapsible{border:1px solid var(--border,#e5e7eb);border-radius:13px;margin-bottom:10px;overflow:hidden;background:var(--card,#fff)}
-.department-collapsible:last-child{margin-bottom:0}.department-collapsible-summary{list-style:none;cursor:pointer;padding:15px 16px;display:flex;justify-content:space-between;gap:14px;align-items:center;background:rgba(0,0,0,.018);user-select:none}.department-collapsible-summary::-webkit-details-marker{display:none}.department-collapsible-summary:hover{background:rgba(0,0,0,.035)}.department-summary-main{display:flex;align-items:center;gap:11px;min-width:0}.department-summary-copy{min-width:0}.department-summary-copy strong{display:block;font-size:13px;line-height:1.35}.department-summary-copy span{display:block;margin-top:4px;color:var(--muted);font-size:10px}.department-chevron{width:25px;height:25px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border,#e5e7eb);border-radius:50%;font-size:21px;line-height:1;transition:transform .18s ease;flex:0 0 25px}.department-collapsible[open] .department-chevron{transform:rotate(90deg)}.department-collapsible-body{padding:17px 18px;border-top:1px solid var(--border,#e5e7eb)}.department-detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 22px}.department-detail-grid>div{padding:10px 0;border-bottom:1px solid var(--line);min-width:0}.department-detail-grid .full{grid-column:1/-1}.department-detail-grid span,.department-positions-head span{display:block;color:var(--muted);font-size:9px;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px}.department-detail-grid strong{font-size:12px;line-height:1.5}.department-actions{display:flex;gap:8px;align-items:center;margin:14px 0 18px}.department-actions form{margin:0}.danger-outline{color:#b14d4d!important;border-color:#e5caca!important}.department-positions-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;padding-top:14px;border-top:1px solid var(--line)}.department-positions-head strong{display:block;font-size:12px}.department-positions-head>span{margin:0;text-transform:none;letter-spacing:0}.department-inline-position-form{display:flex;gap:8px;margin:11px 0}.department-inline-position-form input{flex:1;min-width:0}.position-chip-list{display:flex;flex-wrap:wrap;gap:8px}.position-chip{display:flex;align-items:center;gap:9px;border:1px solid var(--border,#e5e7eb);border-radius:11px;padding:8px 9px 8px 11px;background:#fff}.position-chip>div{min-width:0}.position-chip strong{display:block;font-size:11px}.position-chip span{display:block;color:var(--muted);font-size:9px;margin-top:2px}.position-chip form{margin:0}.department-empty{margin-top:8px}@media(max-width:700px){.department-collapsible-summary{align-items:flex-start;padding:13px}.department-summary-copy strong{font-size:12px}.department-collapsible-body{padding:14px}.department-detail-grid{grid-template-columns:1fr 1fr}.department-detail-grid .full{grid-column:1/-1}.department-actions{flex-wrap:wrap}.department-actions .btn{flex:1;min-width:120px}.department-inline-position-form{align-items:stretch;flex-direction:column}.department-inline-position-form .btn{width:100%}.department-positions-head{align-items:flex-start;flex-direction:column;gap:3px}.position-chip{width:100%;justify-content:space-between}.department-directory .card-head{padding-bottom:13px}}
+.department-collapsible:last-child{margin-bottom:0}.department-collapsible-summary{list-style:none;cursor:pointer;padding:15px 16px;display:flex;justify-content:space-between;gap:14px;align-items:center;background:rgba(0,0,0,.018);user-select:none}.department-collapsible-summary::-webkit-details-marker{display:none}.department-collapsible-summary:hover{background:rgba(0,0,0,.035)}.department-summary-main{display:flex;align-items:center;gap:11px;min-width:0}.department-summary-copy{min-width:0}.department-summary-copy strong{display:block;font-size:13px;line-height:1.35}.department-summary-copy span{display:block;margin-top:4px;color:var(--muted);font-size:11px}.department-chevron{width:25px;height:25px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--border,#e5e7eb);border-radius:50%;font-size:21px;line-height:1;transition:transform .18s ease;flex:0 0 25px}.department-collapsible[open] .department-chevron{transform:rotate(90deg)}.department-collapsible-body{padding:17px 18px;border-top:1px solid var(--border,#e5e7eb)}.department-detail-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:0 22px}.department-detail-grid>div{padding:10px 0;border-bottom:1px solid var(--line);min-width:0}.department-detail-grid .full{grid-column:1/-1}.department-detail-grid span,.department-positions-head span{display:block;color:var(--muted);font-size:11px;margin-bottom:4px}.department-detail-grid strong{font-size:12.5px;line-height:1.5}.department-actions{display:flex;gap:8px;align-items:center;margin:14px 0 18px}.department-actions form{margin:0}.danger-outline{color:#b14d4d!important;border-color:#e5caca!important}.department-positions-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-end;padding-top:14px;border-top:1px solid var(--line)}.department-positions-head strong{display:block;font-size:12.5px}.department-positions-head>span{margin:0}.department-inline-position-form{display:flex;gap:8px;margin:11px 0}.department-inline-position-form input{flex:1;min-width:0}.position-chip-list{display:flex;flex-wrap:wrap;gap:8px}.position-chip{display:flex;align-items:center;gap:9px;border:1px solid var(--border,#e5e7eb);border-radius:11px;padding:8px 9px 8px 11px;background:#fff}.position-chip>div{min-width:0}.position-chip strong{display:block;font-size:12px}.position-chip span{display:block;color:var(--muted);font-size:10px;margin-top:2px}.position-chip form{margin:0}.department-empty{margin-top:8px}@media(max-width:700px){.department-collapsible-summary{align-items:flex-start;padding:13px}.department-summary-copy strong{font-size:12px}.department-collapsible-body{padding:14px}.department-detail-grid{grid-template-columns:1fr 1fr}.department-detail-grid .full{grid-column:1/-1}.department-actions{flex-wrap:wrap}.department-actions .btn{flex:1;min-width:120px}.department-inline-position-form{align-items:stretch;flex-direction:column}.department-inline-position-form .btn{width:100%}.department-positions-head{align-items:flex-start;flex-direction:column;gap:3px}.position-chip{width:100%;justify-content:space-between}.department-directory .card-head{padding-bottom:13px}}
 </style>
 </head>
 <body>
@@ -187,25 +188,22 @@ function department_value(?array $department, string $key): string
         <div class="content">
             <div class="page-heading">
                 <div>
-                    <div class="eyebrow">Organization Setup</div>
-                    <h1>Departments</h1>
-                    <p>Create and manage the departments available when assigning employees.</p>
+                    <h1>Departments <span class="count-pill"><?php echo count($departments); ?></span></h1>
+                    <p><?php echo $activeCount; ?> active department<?php echo $activeCount === 1 ? '' : 's'; ?> and positions.</p>
                 </div>
             </div>
 
-            <?php if (isset($_GET['saved'])): ?><div class="notice ok">Department saved successfully.</div><?php endif; ?>
-            <?php if (isset($_GET['deleted'])): ?><div class="notice ok">Department deleted successfully.</div><?php endif; ?>
-            <?php if (isset($_GET['position_saved'])): ?><div class="notice ok">Position added successfully.</div><?php endif; ?>
-            <?php if (isset($_GET['position_deleted'])): ?><div class="notice ok">Position deleted successfully.</div><?php endif; ?>
+            <?php if (isset($_GET['saved'])): ?><div class="notice ok">Department saved.</div><?php endif; ?>
+            <?php if (isset($_GET['deleted'])): ?><div class="notice ok">Department deleted.</div><?php endif; ?>
+            <?php if (isset($_GET['position_saved'])): ?><div class="notice ok">Position added.</div><?php endif; ?>
+            <?php if (isset($_GET['position_deleted'])): ?><div class="notice ok">Position deleted.</div><?php endif; ?>
             <?php if ($positionError !== ''): ?><div class="notice err"><?php echo e($positionError); ?></div><?php endif; ?>
             <?php if ($error !== ''): ?><div class="notice err"><?php echo e($error); ?></div><?php endif; ?>
 
             <section class="card form-card">
                 <div class="card-head">
                     <div>
-                        <div class="eyebrow"><?php echo $editDepartment ? 'Edit Department' : 'New Department'; ?></div>
-                        <h2><?php echo $editDepartment ? 'Update department' : 'Add a department'; ?></h2>
-                        <p>Departments marked Active appear in the employee form.</p>
+                        <h2><?php echo $editDepartment ? 'Update department' : 'Add department'; ?></h2>
                     </div>
                 </div>
                 <div class="form-body">
@@ -215,16 +213,12 @@ function department_value(?array $department, string $key): string
                         <input type="hidden" name="department_id" value="<?php echo (int)($editDepartment['department_id'] ?? 0); ?>">
                         <div class="form-grid">
                             <div class="field">
-                                <label>Department Name</label>
-                                <input type="text" name="department_name" maxlength="100" required value="<?php echo department_value($editDepartment, 'department_name'); ?>" placeholder="e.g. College of Information Technology">
+                                <label>Department name <span class="required">*</span></label>
+                                <input type="text" name="department_name" maxlength="100" required value="<?php echo department_value($editDepartment, 'department_name'); ?>" placeholder="e.g. College of Computer Studies">
                             </div>
                             <div class="field">
-                                <label>Department Code <span class="mini">Optional</span></label>
-                                <input type="text" name="department_code" maxlength="30" value="<?php echo department_value($editDepartment, 'department_code'); ?>" placeholder="e.g. CITE">
-                            </div>
-                            <div class="field full">
-                                <label>Description <span class="mini">Optional</span></label>
-                                <textarea name="description" rows="3" placeholder="Short description of the department."><?php echo department_value($editDepartment, 'description'); ?></textarea>
+                                <label>Code</label>
+                                <input type="text" name="department_code" maxlength="30" value="<?php echo department_value($editDepartment, 'department_code'); ?>" placeholder="e.g. CCS">
                             </div>
                             <div class="field">
                                 <label>Status</label>
@@ -233,31 +227,28 @@ function department_value(?array $department, string $key): string
                                     <option value="Inactive" <?php echo (($editDepartment['status'] ?? '') === 'Inactive') ? 'selected' : ''; ?>>Inactive</option>
                                 </select>
                             </div>
+                            <div class="field">
+                                <label>Description</label>
+                                <input type="text" name="description" value="<?php echo department_value($editDepartment, 'description'); ?>" placeholder="Optional notes">
+                            </div>
                         </div>
                         <div class="form-actions">
-                            <button class="btn btn-primary" type="submit"><?php echo $editDepartment ? '✓ Update Department' : '✓ Save Department'; ?></button>
+                            <button class="btn btn-primary" type="submit"><?php echo $editDepartment ? 'Update department' : 'Save department'; ?></button>
                             <?php if ($editDepartment): ?><a class="btn btn-secondary" href="departments.php">Cancel</a><?php endif; ?>
                         </div>
                     </form>
                 </div>
             </section>
 
-            <section class="stats" style="margin-top:18px">
-                <div class="card stat"><div class="stat-top"><span class="stat-icon"><?php echo ui_icon('building'); ?></span><span class="stat-trend">Organization</span></div><div class="stat-label">Total Departments</div><div class="stat-number"><?php echo count($departments); ?></div></div>
-                <div class="card stat"><div class="stat-top"><span class="stat-icon"><?php echo ui_icon('shield'); ?></span><span class="stat-trend">Available</span></div><div class="stat-label">Active Departments</div><div class="stat-number"><?php echo $activeCount; ?></div></div>
-            </section>
-
-            <section class="card department-directory" style="overflow:hidden;margin-top:18px">
+            <section class="card department-directory" style="overflow:hidden;margin-top:16px">
                 <div class="card-head">
                     <div>
-                        <div class="eyebrow">Department Directory</div>
-                        <h2>All Departments</h2>
-                        <p><?php echo count($departments); ?> department<?php echo count($departments) === 1 ? '' : 's'; ?> configured. Click a department to view its details and positions.</p>
+                        <h2>Directory & Positions</h2>
                     </div>
                 </div>
                 <div class="department-list">
                     <?php if (!$departments): ?>
-                        <div class="empty">No departments have been added yet.</div>
+                        <div class="empty">No departments added yet.</div>
                     <?php else: foreach ($departments as $department): ?>
                         <?php $deptPositions = $departmentPositions[(int)$department['department_id']] ?? []; $deptKey = dept_color_key($department['department_code'] ?? '', $department['department_name'] ?? ''); ?>
                         <details class="department-collapsible" style="--dept-c:var(--c-<?php echo $deptKey; ?>);--dept-c-soft:var(--c-<?php echo $deptKey; ?>-soft)">
@@ -274,13 +265,15 @@ function department_value(?array $department, string $key): string
                             </summary>
                             <div class="department-collapsible-body"><div class="dept-clip">
                                 <div class="department-detail-grid">
-                                    <div><span>Department Code</span><strong><?php echo e($department['department_code'] ?: '—'); ?></strong></div>
+                                    <div><span>Code</span><strong><?php echo e($department['department_code'] ?: '—'); ?></strong></div>
                                     <div><span>Employees</span><strong><?php echo (int)$department['employee_count']; ?></strong></div>
                                     <div><span>Status</span><strong><?php echo e($department['status']); ?></strong></div>
-                                    <div class="full"><span>Description</span><strong><?php echo e($department['description'] ?: 'No description provided.'); ?></strong></div>
+                                    <?php if (!empty($department['description'])): ?>
+                                    <div class="full"><span>Description</span><strong><?php echo e($department['description']); ?></strong></div>
+                                    <?php endif; ?>
                                 </div>
                                 <div class="department-actions">
-                                    <a class="btn btn-secondary btn-small" href="departments.php?edit=<?php echo (int)$department['department_id']; ?>">Edit Department</a>
+                                    <a class="btn btn-secondary btn-small" href="departments.php?edit=<?php echo (int)$department['department_id']; ?>">Edit</a>
                                     <form method="post" onsubmit="return confirm('Delete this department?')">
                                         <?php echo csrf_field(); ?>
                                         <input type="hidden" name="action" value="delete">
@@ -289,18 +282,17 @@ function department_value(?array $department, string $key): string
                                     </form>
                                 </div>
                                 <div class="department-positions-head">
-                                    <div><strong>Positions</strong><span><?php echo count($deptPositions); ?> configured</span></div>
-                                    <span class="mini">Add positions directly below</span>
+                                    <div><strong>Positions (<?php echo count($deptPositions); ?>)</strong></div>
                                 </div>
                                 <form method="post" class="department-inline-position-form">
                                     <?php echo csrf_field(); ?>
                                     <input type="hidden" name="action" value="save_position">
                                     <input type="hidden" name="position_department_id" value="<?php echo (int)$department['department_id']; ?>">
-                                    <input type="text" name="position_name" maxlength="120" required placeholder="e.g. Instructor">
-                                    <button class="btn btn-primary btn-small" type="submit">+ Add Position</button>
+                                    <input type="text" name="position_name" maxlength="120" required placeholder="Add position (e.g. Instructor I)">
+                                    <button class="btn btn-primary btn-small" type="submit">+ Add</button>
                                 </form>
                                 <?php if (!$deptPositions): ?>
-                                    <div class="empty department-empty">No positions added for this department.</div>
+                                    <div class="empty department-empty">No positions configured.</div>
                                 <?php else: ?>
                                     <div class="position-chip-list">
                                         <?php foreach ($deptPositions as $position): ?>

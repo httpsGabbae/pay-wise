@@ -6,16 +6,16 @@
         return '../assets/';
     }
     var root = base();
-    if (!document.querySelector('link[data-apple-system]')) {
+    if (!document.querySelector('link[data-apple-system], link[href*="apple-system.css"]')) {
         var link = document.createElement('link');
         link.rel = 'stylesheet';
-        link.href = root + 'css/apple-system.css?v=20260916-apple9';
+        link.href = root + 'css/apple-system.css?v=20261112-clean1';
         link.setAttribute('data-apple-system', '1');
         document.head.appendChild(link);
     }
-    if (!document.querySelector('script[data-apple-motion]')) {
+    if (!document.querySelector('script[data-apple-motion], script[src*="apple-motion.js"]')) {
         var sc = document.createElement('script');
-        sc.src = root + 'js/apple-motion.js?v=20260916-apple1';
+        sc.src = root + 'js/apple-motion.js?v=20261112-clean1';
         sc.defer = true;
         sc.setAttribute('data-apple-motion', '1');
         document.head.appendChild(sc);

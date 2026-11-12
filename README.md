@@ -1,4 +1,4 @@
-# Paywise — Payroll & HR Workspace
+# Lipa City Colleges — Payroll & HR Workspace
 
 A web-based employee + payroll workspace: one admin app for people, attendance, pay, reports, and print-ready records — plus a self-service portal for employees.
 
@@ -77,7 +77,12 @@ Built with plain PHP + MySQLi. No framework, no build step. Runs under XAMPP.
 
 | Role | Credential | Notes |
 |---|---|---|
-| Admin | provisioned in `admins` table | There is no admin self-registration by design; accounts are created out-of-band. |
+| Admin — Superadmin | full access + manages accounts (`pages/accounts.php`) | everything, user management |
+| Admin — Finance | payroll, salary, reports | no employee directory, no user management |
+| Admin — HR | employees, attendance, departments, payroll (masked: attendance shown, ₱ figures hidden) | no pay figures, no reports, read-only payroll |
+| Employee | own profile, pay history, attendance, password | only own rows (SQL-scoped) |
+
+There is no self-registration: accounts are created by a superadmin. New installs seed one superadmin (`admin`); existing databases run `migrate_roles.sql` once to add the role columns (current admins become superadmin).
 | Employee (seeded sample) | `25-0001` / `Employee@123` | Available on a fresh import; password changeable in the portal. |
 
 ## How it works
@@ -152,4 +157,4 @@ From `AGENTS.md` — these are enforced, not suggestions:
 
 ## Out of scope (v1)
 
-Automatic tax/SSS/PhilHealth/Pag-IBIG tables, bank disbursement files, multi-admin roles, audit-log UI, email/SMS notifications, leave/overtime engine, biometric integration, multi-branch support, public API.
+Automatic tax/SSS/PhilHealth/Pag-IBIG tables, bank disbursement files, audit-log UI, email/SMS notifications, leave/overtime engine, biometric integration, multi-branch support, public API.

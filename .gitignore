@@ -1,0 +1,49 @@
+# ============================================================
+# Lipa City Colleges — HR & Payroll System (.gitignore)
+# ============================================================
+
+# Environment & local credentials
+.env
+.env.*
+!.env.example
+config/database.local.php
+
+# Local backups & database dumps
+/backups/
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.bak
+*.sql.gz
+
+# Runtime employee photo uploads (keep folder & brand logos)
+/uploads/employee_photos/*
+!/uploads/employee_photos/.gitkeep
+
+# Temporary / scratch / verification scripts
+/scratch/
+verify_*.py
+*.tmp
+*.temp
+*.log
+php_errors.log
+
+# IDE & Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini

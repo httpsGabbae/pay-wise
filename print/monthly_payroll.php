@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
+require_role('superadmin', 'finance');
 require_once __DIR__ . '/../includes/pdf.php';
 
 $month = $_GET['month'] ?? date('Y-m');
@@ -66,7 +67,7 @@ class MonthlyPayrollPDF extends FPDF
         $this->SetXY(45, 11);
         $this->SetFont('Arial', 'B', 17);
         $this->SetTextColor(6, 59, 70);
-        $this->Cell(0, 7, pdf_text('PAYWISE'), 0, 1, 'L');
+        $this->Cell(0, 7, pdf_text('LIPA CITY COLLEGES'), 0, 1, 'L');
         $this->SetX(45);
         $this->SetFont('Arial', 'B', 10);
         $this->SetTextColor(15, 127, 123);
@@ -91,7 +92,7 @@ class MonthlyPayrollPDF extends FPDF
         $this->SetY(-12);
         $this->SetFont('Arial', '', 7);
         $this->SetTextColor(110, 123, 128);
-        $this->Cell(0, 6, pdf_text('Private and Confidential · Paywise · Page ' . $this->PageNo() . ' of {nb}'), 0, 0, 'C');
+        $this->Cell(0, 6, pdf_text('Lipa City Colleges · Private and Confidential · Page ' . $this->PageNo() . ' of {nb}'), 0, 0, 'C');
     }
 }
 

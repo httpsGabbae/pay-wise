@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../includes/auth.php';
+require_role('superadmin', 'finance');
 require_once __DIR__ . '/../includes/pdf.php';
 
 class PayrollListPDF extends FPDF
@@ -11,7 +12,7 @@ class PayrollListPDF extends FPDF
         $this->SetXY(47, 12);
         $this->SetFont('Arial', 'B', 16);
         $this->SetTextColor(6, 59, 70);
-        $this->Cell(0, 7, pdf_text('PAYWISE'), 0, 1, 'L');
+        $this->Cell(0, 7, pdf_text('LIPA CITY COLLEGES'), 0, 1, 'L');
         $this->SetX(47);
         $this->SetFont('Arial', 'B', 10);
         $this->SetTextColor(15, 127, 123);

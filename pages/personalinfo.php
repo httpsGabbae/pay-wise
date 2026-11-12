@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
+require_role('superadmin', 'hr');
 require_once __DIR__ . '/../includes/layout.php';
 
 $editId = (int)($_GET['edit'] ?? 0);
@@ -127,7 +128,7 @@ function field_value(?array $employee, string $key): string
     return e($employee[$key] ?? '');
 }
 
-$disabled = 'disabled';
+$disabled = '';
 $isNew = !$employee;
 
 $departments = [];
@@ -140,12 +141,12 @@ if ($departmentResult) {
 
 if (!$departments) {
     $departments = [
-        'College of Computing Technology and Engineering',
-        'College of Nursing',
-        'College of Internal and Tourism Management',
-        'College of Criminal Justice Education',
-        'College of Business Accountancy',
-        'College of Education and Liberal Arts'
+        'Operations',
+        'Finance & Accounting',
+        'Human Resources',
+        'Information Technology',
+        'Sales & Marketing',
+        'Customer Support'
     ];
 }
 
@@ -163,199 +164,137 @@ if ($positionResult) {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<!-- FAVICON: Put your favicon file at /assets/favicon.png -->
-<link rel="icon" type="image/png" href="../assets/favicon.png">
-    <title>Paywise</title>
-    <link rel="stylesheet" href="../assets/css/app.css?v=20260909-rail4">
-    <link rel="stylesheet" href="../assets/css/apple-system.css?v=20260916-apple9">
-    <script src="../assets/js/app.js?v=20260916-rail5" defer></script>
-    <script src="../assets/js/apple-motion.js?v=20260916-apple1" defer></script>
+    <link rel="icon" type="image/png" href="../assets/favicon.png?v=lcc1">
+    <title>Lipa City Colleges · <?php echo $employee ? 'Edit Employee' : 'New Employee'; ?></title>
+    <link rel="stylesheet" href="../assets/css/app.css?v=20261112-clean1">
+    <link rel="stylesheet" href="../assets/css/apple-system.css?v=20261112-clean1">
+    <script src="../assets/js/app.js?v=20261112-clean1" defer></script>
+    <script src="../assets/js/apple-motion.js?v=20261112-clean1" defer></script>
 </head>
 
 <body>
     <div class="app">
-        <?php sidebar($employee ? 'employees' : 'add'); ?>
+        <?php sidebar('employees'); ?>
         <main class="main">
-            <?php topbar($employee ? 'Employee Information' : 'Add Employee'); ?>
+            <?php topbar($employee ? 'Edit Employee' : 'New Employee'); ?>
             <div class="content">
                 <div class="page-heading">
                     <div>
-                        <div class="eyebrow">Employee Management</div>
-                        <h1><?php echo $employee ? 'Employee Information' : 'Add a New Employee'; ?></h1>
-                        <p><?php echo $employee ? 'Review the information below. Click Edit Employee before changing anything.' : 'Click Add Employee when you are ready to enter the employee information.'; ?></p>
-                        <div class="employee-id-summary"><span>Employee ID</span><strong><?php echo $employee ? e($employee['employee_no']) : 'Auto-generated'; ?></strong></div>
+                        <h1><?php echo $employee ? e(employee_name($employee)) : 'New Employee'; ?></h1>
+                        <div class="employee-id-summary"><span>ID</span><strong><?php echo $employee ? e($employee['employee_no']) : e(next_employee_no($conn)); ?></strong></div>
                     </div>
                     <div class="print-tools">
-                        <a class="btn btn-secondary" href="personalinfo.php?cancel=1">Cancel</a>           
-
-                        <a class="btn btn-secondary" href="employees.php">← Employee List</a>                                                                      
-                        <?php if ($employee): ?><button type="button" class="btn btn-secondary" onclick="printEmployeeInformation(<?php echo (int)$employee['employee_id']; ?>)">🖨 Print Employee</button><?php endif; ?>
-                        <?php if ($isNew): ?><button class="btn btn-primary" type="button" onclick="enablePersonForm()">＋ Add Employee</button><?php else: ?><button class="btn btn-primary" type="button" onclick="enablePersonForm()">✎ Edit Employee</button><?php endif; ?>
+                        <a class="btn btn-secondary" href="employees.php"><?php echo ui_icon('arrow-left'); ?> Back</a>
+                        <?php if ($employee): ?><button type="button" class="btn btn-secondary" onclick="printEmployeeInformation(<?php echo (int)$employee['employee_id']; ?>)"><?php echo ui_icon('printer'); ?> Print</button><?php endif; ?>
                     </div>
                 </div>
 
                 <?php if ($message): ?><div class="notice ok"><?php echo e($message); ?></div><?php endif; ?>
                 <?php if ($error): ?><div class="notice err"><?php echo e($error); ?></div><?php endif; ?>
 
-                <div id="lockedNotice" class="locked-box">
-                    <?php echo $employee ? '🔒 This employee is in view mode. Click Edit Employee to make the fields editable.' : '🔒 The form is locked. Click Add Employee to start entering employee information.'; ?>
-                </div>
-
                 <form id="employeeForm" class="form-card" method="post" enctype="multipart/form-data">
                     <?php echo csrf_field(); ?>
                     <input type="hidden" name="employee_id" value="<?php echo (int)($employee['employee_id'] ?? 0); ?>">
                     <div class="form-body">
-                        <div class="section-title">Employee ID</div>
+                        <div class="section-title">Personal</div>
                         <div class="form-grid">
-                            <div class="field"><label>Employee ID</label><input type="text" value="<?php echo $employee ? field_value($employee, 'employee_no') : e(next_employee_no($conn)) ?>" placeholder="25-0001" readonly></div>
-                        </div>
-
-                        <div class="section-title">Personal Information</div>
-                        <div class="form-grid">
-                            <div class="field"><label>First Name <span class="required">*</span></label><input <?php echo $disabled; ?> name="first_name" value="<?php echo field_value($employee, 'first_name'); ?>" required></div>
-                            <div class="field"><label>Middle Name</label><input <?php echo $disabled; ?> name="middle_name" value="<?php echo field_value($employee, 'middle_name'); ?>"></div>
-                            <div class="field"><label>Last Name <span class="required">*</span></label><input <?php echo $disabled; ?> name="last_name" value="<?php echo field_value($employee, 'last_name'); ?>" required></div>
-                            <div class="field"><label>Gender</label><select <?php echo $disabled; ?> name="gender">
+                            <div class="field"><label>First name <span class="required">*</span></label><input name="first_name" value="<?php echo field_value($employee, 'first_name'); ?>" required></div>
+                            <div class="field"><label>Middle name</label><input name="middle_name" value="<?php echo field_value($employee, 'middle_name'); ?>"></div>
+                            <div class="field"><label>Last name <span class="required">*</span></label><input name="last_name" value="<?php echo field_value($employee, 'last_name'); ?>" required></div>
+                            <div class="field"><label>Gender</label><select name="gender">
                                     <option value="Male" <?php echo ($employee['gender'] ?? '') === 'Male' ? 'selected' : ''; ?>>Male</option>
                                     <option value="Female" <?php echo ($employee['gender'] ?? '') === 'Female' ? 'selected' : ''; ?>>Female</option>
                                     <option value="Other" <?php echo ($employee['gender'] ?? 'Other') === 'Other' ? 'selected' : ''; ?>>Other</option>
                                 </select></div>
-                            <div class="field"><label>Birth Date</label><input <?php echo $disabled; ?> type="date" name="birth_date" value="<?php echo field_value($employee, 'birth_date'); ?>"></div>
-                            <div class="field"><label>Civil Status</label><input <?php echo $disabled; ?> name="civil_status" value="<?php echo field_value($employee, 'civil_status'); ?>"></div>
-                            <div class="field"><label>Nationality</label><input <?php echo $disabled; ?> name="nationality" value="<?php echo field_value($employee, 'nationality'); ?>"></div>
-                            <div class="field"><label>Religion</label><input <?php echo $disabled; ?> name="religion" value="<?php echo field_value($employee, 'religion'); ?>"></div>
+                            <div class="field"><label>Birth date</label><input type="date" name="birth_date" value="<?php echo field_value($employee, 'birth_date'); ?>"></div>
+                            <div class="field"><label>Civil status</label><input name="civil_status" value="<?php echo field_value($employee, 'civil_status'); ?>"></div>
+                            <div class="field"><label>Nationality</label><input name="nationality" value="<?php echo field_value($employee, 'nationality'); ?>"></div>
+                            <div class="field"><label>Religion</label><input name="religion" value="<?php echo field_value($employee, 'religion'); ?>"></div>
                         </div>
 
-                        <div class="section-title">Contact Information</div>
+                        <div class="section-title">Employment & Compensation</div>
                         <div class="form-grid">
-                            <div class="field"><label>Contact Number</label><input <?php echo $disabled; ?> name="contact_number" value="<?php echo field_value($employee, 'contact_number'); ?>"></div>
-                            <div class="field"><label>Email Address</label><input <?php echo $disabled; ?> type="email" name="email" value="<?php echo field_value($employee, 'email'); ?>"></div>
-                            <div class="field"><label>Portal Password</label><input <?php echo $disabled; ?> type="password" name="portal_password" value="" placeholder="Set or change portal password"><small>Employees use this password with their Employee ID to access the Employee Portal.</small></div>
-                            <div class="field full"><label>Permanent Address</label><textarea <?php echo $disabled; ?> name="permanent_address"><?php echo field_value($employee, 'permanent_address'); ?></textarea></div>
-                            <div class="field full"><label>Present Address</label><textarea <?php echo $disabled; ?> name="present_address"><?php echo field_value($employee, 'present_address'); ?></textarea></div>
-                        </div>
-
-                        <div class="section-title">Government IDs</div>
-                        <div class="form-grid">
-                            <div class="field"><label>SSS No.</label><input <?php echo $disabled; ?> name="sss_no" value="<?php echo field_value($employee, 'sss_no'); ?>"></div>
-                            <div class="field"><label>PhilHealth No.</label><input <?php echo $disabled; ?> name="philhealth_no" value="<?php echo field_value($employee, 'philhealth_no'); ?>"></div>
-                            <div class="field"><label>Pag-IBIG No.</label><input <?php echo $disabled; ?> name="pagibig_no" value="<?php echo field_value($employee, 'pagibig_no'); ?>"></div>
-                            <div class="field"><label>TIN No.</label><input <?php echo $disabled; ?> name="tin_no" value="<?php echo field_value($employee, 'tin_no'); ?>"></div>
-                            <div class="field"><label>ATM No.</label><input <?php echo $disabled; ?> name="atm_no" value="<?php echo field_value($employee, 'atm_no'); ?>"></div>
-                        </div>
-
-                        <div class="section-title">Employment</div>
-                        <div class="form-grid">
-                            <div class="field"><label>Department</label><select <?php echo $disabled; ?> name="department">
+                            <div class="field"><label>Department</label><select name="department">
                                     <option value="">Select department</option><?php foreach ($departments as $d): ?><option value="<?php echo e($d); ?>" <?php echo ($employee['department'] ?? '') === $d ? 'selected' : ''; ?>><?php echo e($d); ?></option><?php endforeach; ?>
                                 </select></div>
-                            <!-- <div class="field"><label>Position</label><input <?php echo $disabled; ?> name="position" value="<?php echo field_value($employee, 'position'); ?>"></div> -->
                             <div class="field">
                                 <label>Position</label>
-
-                                <select <?php echo $disabled; ?> name="position" id="position">
+                                <select name="position" id="position">
                                     <option value="">Select position</option>
                                 </select>
                             </div>
-                            <div class="field"><label>Employment Status</label><select <?php echo $disabled; ?> name="employment_status"><?php foreach (['Regular', 'Probationary', 'Contractual', 'Part-Time'] as $status): ?><option value="<?php echo $status; ?>" <?php echo ($employee['employment_status'] ?? 'Regular') === $status ? 'selected' : ''; ?>><?php echo $status; ?></option><?php endforeach; ?></select></div>
-                            <div class="field"><label>Basic Salary</label><input <?php echo $disabled; ?> type="number" min="0" step="0.01" name="basic_salary" value="<?php echo field_value($employee, 'basic_salary'); ?>"></div>
-                            <div class="field"><label>Date Hired</label><input <?php echo $disabled; ?> type="date" name="date_hired" value="<?php echo field_value($employee, 'date_hired'); ?>"></div>
+                            <div class="field"><label>Status</label><select name="employment_status"><?php foreach (['Regular', 'Probationary', 'Contractual', 'Part-Time'] as $status): ?><option value="<?php echo $status; ?>" <?php echo ($employee['employment_status'] ?? 'Regular') === $status ? 'selected' : ''; ?>><?php echo $status; ?></option><?php endforeach; ?></select></div>
+                            <div class="field"><label>Basic salary (₱)</label><input type="number" min="0" step="0.01" name="basic_salary" value="<?php echo field_value($employee, 'basic_salary'); ?>"></div>
+                            <div class="field"><label>Date hired</label><input type="date" name="date_hired" value="<?php echo field_value($employee, 'date_hired'); ?>"></div>
+                            <div class="field"><label>Photo <span class="mini">JPG/PNG, max 2MB</span></label><input type="file" name="employee_photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></div>
+                        </div>
+                        <?php if ($employee && !empty($employee['photo_path'])): ?><div style="margin-top:8px"><img class="profile-photo" src="../<?php echo e(ltrim($employee['photo_path'], '/')); ?>" alt="Employee photo"></div><?php endif; ?>
+
+                        <div class="section-title">Contact & Portal Access</div>
+                        <div class="form-grid">
+                            <div class="field"><label>Phone</label><input name="contact_number" value="<?php echo field_value($employee, 'contact_number'); ?>"></div>
+                            <div class="field"><label>Email</label><input type="email" name="email" value="<?php echo field_value($employee, 'email'); ?>"></div>
+                            <div class="field"><label>Portal password</label><input type="password" name="portal_password" value="" placeholder="<?php echo $employee ? 'Leave blank to keep current' : 'Set portal password'; ?>"></div>
+                            <div class="field full"><label>Present address</label><textarea name="present_address" rows="2"><?php echo field_value($employee, 'present_address'); ?></textarea></div>
+                            <div class="field full"><label>Permanent address</label><textarea name="permanent_address" rows="2"><?php echo field_value($employee, 'permanent_address'); ?></textarea></div>
                         </div>
 
-                        <div class="section-title">Emergency Contact</div>
+                        <div class="section-title">Government & Bank IDs</div>
                         <div class="form-grid">
-                            <div class="field"><label>Full Name</label><input <?php echo $disabled; ?> name="emergency_contact_name" value="<?php echo field_value($employee, 'emergency_contact_name'); ?>"></div>
-                            <div class="field"><label>Phone Number</label><input <?php echo $disabled; ?> name="emergency_contact_phone" value="<?php echo field_value($employee, 'emergency_contact_phone'); ?>"></div>
-                            <div class="field full"><label>Address</label><textarea <?php echo $disabled; ?> name="emergency_contact_address"><?php echo field_value($employee, 'emergency_contact_address'); ?></textarea></div>
+                            <div class="field"><label>SSS</label><input name="sss_no" value="<?php echo field_value($employee, 'sss_no'); ?>"></div>
+                            <div class="field"><label>PhilHealth</label><input name="philhealth_no" value="<?php echo field_value($employee, 'philhealth_no'); ?>"></div>
+                            <div class="field"><label>Pag-IBIG</label><input name="pagibig_no" value="<?php echo field_value($employee, 'pagibig_no'); ?>"></div>
+                            <div class="field"><label>TIN</label><input name="tin_no" value="<?php echo field_value($employee, 'tin_no'); ?>"></div>
+                            <div class="field"><label>ATM / Bank account</label><input name="atm_no" value="<?php echo field_value($employee, 'atm_no'); ?>"></div>
                         </div>
 
-                        <div class="section-title">Dependent</div>
+                        <div class="section-title">Emergency Contact & Dependent</div>
                         <div class="form-grid">
-                            <div class="field"><label>Full Name</label><input <?php echo $disabled; ?> name="dependent_name" value="<?php echo field_value($employee, 'dependent_name'); ?>"></div>
-                            <div class="field"><label>Relationship</label><input <?php echo $disabled; ?> name="dependent_relationship" value="<?php echo field_value($employee, 'dependent_relationship'); ?>"></div>
-                            <div class="field"><label>Birth Date</label><input <?php echo $disabled; ?> type="date" name="dependent_birth_date" value="<?php echo field_value($employee, 'dependent_birth_date'); ?>"></div>
+                            <div class="field"><label>Emergency contact</label><input name="emergency_contact_name" value="<?php echo field_value($employee, 'emergency_contact_name'); ?>"></div>
+                            <div class="field"><label>Emergency phone</label><input name="emergency_contact_phone" value="<?php echo field_value($employee, 'emergency_contact_phone'); ?>"></div>
+                            <div class="field"><label>Emergency address</label><input name="emergency_contact_address" value="<?php echo field_value($employee, 'emergency_contact_address'); ?>"></div>
+                            <div class="field"><label>Dependent name</label><input name="dependent_name" value="<?php echo field_value($employee, 'dependent_name'); ?>"></div>
+                            <div class="field"><label>Relationship</label><input name="dependent_relationship" value="<?php echo field_value($employee, 'dependent_relationship'); ?>"></div>
+                            <div class="field"><label>Dependent birth date</label><input type="date" name="dependent_birth_date" value="<?php echo field_value($employee, 'dependent_birth_date'); ?>"></div>
                         </div>
 
-                        <div class="section-title">Education and Character Reference</div>
+                        <div class="section-title">Background & References</div>
                         <div class="form-grid">
-                            <div class="field full"><label>Educational Background</label><textarea <?php echo $disabled; ?> name="education_background"><?php echo field_value($employee, 'education_background'); ?></textarea></div>
-                            <div class="field full"><label>Character Reference</label><textarea <?php echo $disabled; ?> name="character_reference"><?php echo field_value($employee, 'character_reference'); ?></textarea></div>
+                            <div class="field full"><label>Education</label><textarea name="education_background" rows="2"><?php echo field_value($employee, 'education_background'); ?></textarea></div>
+                            <div class="field full"><label>Character reference</label><textarea name="character_reference" rows="2"><?php echo field_value($employee, 'character_reference'); ?></textarea></div>
                         </div>
-
-                        <div class="section-title">Employee Photo</div>
-                        <div class="form-grid">
-                            <div class="field full"><label>Photo <span class="mini">JPG or PNG, maximum 2MB</span></label><input <?php echo $disabled; ?> type="file" name="employee_photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></div>
-                        </div>
-                        <?php if ($employee && !empty($employee['photo_path'])): ?><div style="margin-top:12px"><img class="profile-photo" src="../<?php echo e(ltrim($employee['photo_path'], '/')); ?>" alt="Employee photo"></div><?php endif; ?>
                     </div>
                     <div class="form-actions">
-                        <button id="saveButton" class="btn btn-primary" type="submit" disabled>✓ Save Employee</button>
-                        <a class="btn btn-secondary" href="personalinfo.php?cancel=1">Cancel</a>
+                        <button id="saveButton" class="btn btn-primary" type="submit">Save employee</button>
+                        <a class="btn btn-secondary" href="employees.php">Cancel</a>
                     </div>
                 </form>
             </div>
         </main>
     </div>
     <script>
-        function enablePersonForm() {
-            document.querySelectorAll('#employeeForm input:not([name="employee_id"]), #employeeForm select, #employeeForm textarea').forEach(function(field) {
-                if (!field.hasAttribute('data-fixed')) field.disabled = false;
-            });
-            document.getElementById('saveButton').disabled = false;
-            document.getElementById('lockedNotice').textContent = '✎ Editing is enabled. Review the information, then click Save Employee when finished.';
-        }
         const positions = <?php echo json_encode($positions, JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP); ?>;
-
         const departmentSelect = document.querySelector('select[name="department"]');
         const positionSelect = document.getElementById('position');
-
         const currentPosition = <?php echo json_encode($employee['position'] ?? '', JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP); ?>;
 
-        function loadPositions() {
-
+        function loadPositions(keepSelected) {
             const selectedDepartment = departmentSelect.value;
-
             positionSelect.innerHTML = '<option value="">Select position</option>';
-
             if (positions[selectedDepartment]) {
-
                 positions[selectedDepartment].forEach(function(position) {
-
                     const option = document.createElement('option');
-
                     option.value = position;
                     option.textContent = position;
-
-                    if (position === currentPosition) {
+                    if (keepSelected && position === currentPosition) {
                         option.selected = true;
                     }
-
                     positionSelect.appendChild(option);
                 });
             }
         }
-
-        departmentSelect.addEventListener('change', function() {
-
-            positionSelect.innerHTML = '<option value="">Select position</option>';
-
-            const selectedDepartment = departmentSelect.value;
-
-            if (positions[selectedDepartment]) {
-
-                positions[selectedDepartment].forEach(function(position) {
-
-                    const option = document.createElement('option');
-
-                    option.value = position;
-                    option.textContent = position;
-
-                    positionSelect.appendChild(option);
-                });
-            }
-        });
-
-        loadPositions();
+        departmentSelect.addEventListener('change', function() { loadPositions(false); });
+        loadPositions(true);
     </script>
 <div id="nativeEmployeePrintSheet" class="native-print-sheet" aria-hidden="true"></div>
 <script>

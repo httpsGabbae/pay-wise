@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../includes/auth.php';
+require_role('superadmin', 'hr');
 require_once __DIR__ . '/../includes/pdf.php';
 
 $id = (int)($_GET['id'] ?? 0);
@@ -75,32 +76,33 @@ $pdf->AddPage();
 |--------------------------------------------------------------------------
 */
 
-// Clean FPDF header: no print/close controls or personnel-file stamp.
-$pdf->SetXY(15, 10);
+// Clean FPDF header with Lipa City Colleges seal
+pdf_logo($pdf);
+$pdf->SetXY(47, 10);
 $pdf->SetFont('Arial', 'B', 15);
 $pdf->SetTextColor(6, 59, 70);
-$pdf->Cell(105, 7, pdf_text('PAYWISE'), 0, 0, 'L');
+$pdf->Cell(73, 7, pdf_text('LIPA CITY COLLEGES'), 0, 0, 'L');
 
 $pdf->SetFont('Arial', '', 7);
 $pdf->SetTextColor(100, 115, 120);
 $pdf->Cell(75, 7, pdf_text('Printed: ' . date('M d, Y h:i A')), 0, 1, 'R');
 
-$pdf->SetX(15);
+$pdf->SetX(47);
 $pdf->SetFont('Arial', 'B', 10);
 $pdf->SetTextColor(15, 127, 123);
 $pdf->Cell(0, 5, pdf_text('EMPLOYEE RECORD'), 0, 1, 'L');
 
-$pdf->SetX(15);
+$pdf->SetX(47);
 $pdf->SetFont('Arial', '', 8);
 $pdf->SetTextColor(105, 119, 125);
 $pdf->Cell(0, 5, pdf_text('Official employee record'), 0, 1, 'L');
 
 $pdf->SetDrawColor(15, 159, 154);
 $pdf->SetLineWidth(0.7);
-$pdf->Line(15, 32, 195, 32);
+$pdf->Line(15, 39, 195, 39);
 $pdf->SetLineWidth(0.2);
 $pdf->SetTextColor(23, 50, 59);
-$pdf->SetY(38);
+$pdf->SetY(44);
 
 
 /*
