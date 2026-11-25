@@ -428,3 +428,48 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, se
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
 
+-- ------------------------------------------------------------
+-- 18. Serverless HTTPS SQL RPC Bridge (For Vercel + SUPABASE_SERVICE_ROLE_KEY)
+-- ------------------------------------------------------------
+CREATE OR REPLACE FUNCTION public.paywise_exec_sql(sql_query TEXT)
+RETURNS JSONB
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    cleaned_query TEXT := BTRIM(REGEXP_REPLACE(sql_query, ';\s*$', ''));
+    result_rows JSONB := '[]'::JSONB;
+    affected_count INTEGER := 0;
+    last_id BIGINT := 0;
+BEGIN
+    PERFORM set_config('TimeZone', 'Asia/Manila', true);
+
+    IF cleaned_query ~* '^\s*(SELECT|WITH|SHOW)\b' THEN
+        EXECUTE 'SELECT COALESCE(jsonb_agg(row_to_json(t)), ''[]''::jsonb) FROM (' || cleaned_query || ') t'
+        INTO result_rows;
+        RETURN jsonb_build_object(
+            'rows', COALESCE(result_rows, '[]'::jsonb),
+            'affected_rows', jsonb_array_length(COALESCE(result_rows, '[]'::jsonb)),
+            'insert_id', 0
+        );
+    ELSE
+        EXECUTE cleaned_query;
+        GET DIAGNOSTICS affected_count = ROW_COUNT;
+        BEGIN
+            SELECT lastval() INTO last_id;
+        EXCEPTION WHEN OTHERS THEN
+            last_id := 0;
+        END;
+        RETURN jsonb_build_object(
+            'rows', '[]'::jsonb,
+            'affected_rows', affected_count,
+            'insert_id', COALESCE(last_id, 0)
+        );
+    END IF;
+END;
+$$;
+
+REVOKE ALL ON FUNCTION public.paywise_exec_sql(TEXT) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.paywise_exec_sql(TEXT) TO service_role, postgres;
+
+

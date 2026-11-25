@@ -16,7 +16,7 @@ foreach ($candidateEnvironmentFiles as $envFilePath) {
             [$envKey, $envVal] = explode('=', $line, 2);
             $envKey = trim($envKey);
             $envVal = trim(trim($envVal), "\"'");
-            if ($envKey !== '') {
+            if ($envKey !== '' && strpos($envVal, '[YOUR-') === false) {
                 putenv("$envKey=$envVal");
                 $_ENV[$envKey] = $envVal;
             }
@@ -293,13 +293,186 @@ if (!class_exists('SupabasePgResult')) {
         }
     }
 
+    class SupabaseHttpRpcStatement
+    {
+        private SupabaseHttpRpcConnection $connection_instance;
+        private string $sql_query;
+        private array $bound_parameters = [];
+        private array $bound_types = [];
+        private array $last_rows = [];
+        public int $insert_id = 0;
+        public int $affected_rows = 0;
+
+        public function __construct(SupabaseHttpRpcConnection $conn, string $sql)
+        {
+            $this->connection_instance = $conn;
+            $this->sql_query = $sql;
+        }
+
+        public function bind_param(string $type_definitions, &...$bound_variables): bool
+        {
+            $this->bound_parameters = [];
+            $this->bound_types = [];
+            foreach ($bound_variables as $index => $variable_value) {
+                $type_char = $type_definitions[$index] ?? 's';
+                $this->bound_types[] = $type_char;
+                $this->bound_parameters[] = $variable_value;
+            }
+            return true;
+        }
+
+        public function execute(): bool
+        {
+            $param_index = 0;
+            $parameters = $this->bound_parameters;
+            $types = $this->bound_types;
+            $interpolated_sql = preg_replace_callback('/\?/', function () use (&$param_index, $parameters, $types): string {
+                $val = $parameters[$param_index] ?? null;
+                $type = $types[$param_index] ?? 's';
+                $param_index++;
+                if ($val === null) {
+                    return 'NULL';
+                }
+                if ($type === 'i') {
+                    return (string)(int)$val;
+                }
+                if ($type === 'd') {
+                    return (string)(float)$val;
+                }
+                return "'" . str_replace("'", "''", (string)$val) . "'";
+            }, $this->sql_query);
+
+            $rpc_result = $this->connection_instance->executeRpc($interpolated_sql);
+            $this->last_rows = $rpc_result['rows'];
+            $this->affected_rows = $rpc_result['affected_rows'];
+            $this->insert_id = $rpc_result['insert_id'];
+            $this->connection_instance->affected_rows = $this->affected_rows;
+            if ($this->insert_id > 0) {
+                $this->connection_instance->insert_id = $this->insert_id;
+            }
+            return true;
+        }
+
+        public function get_result(): SupabasePgResult
+        {
+            return new SupabasePgResult($this->last_rows);
+        }
+
+        public function close(): void
+        {
+            $this->last_rows = [];
+        }
+    }
+
+    class SupabaseHttpRpcConnection
+    {
+        private string $supabase_url;
+        private string $api_key;
+        public int $connect_errno = 0;
+        public string $connect_error = '';
+        public int $insert_id = 0;
+        public int $affected_rows = 0;
+
+        public function __construct(string $supabase_url, string $api_key)
+        {
+            $this->supabase_url = rtrim($supabase_url, '/');
+            $this->api_key = $api_key;
+        }
+
+        public function executeRpc(string $sql): array
+        {
+            $endpoint = $this->supabase_url . '/rest/v1/rpc/paywise_exec_sql';
+            $payload = json_encode(['sql_query' => $sql]);
+            $ch = curl_init($endpoint);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => $payload,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'apikey: ' . $this->api_key,
+                    'Authorization: Bearer ' . $this->api_key,
+                ],
+                CURLOPT_TIMEOUT => 15,
+            ]);
+            $raw_response = curl_exec($ch);
+            $http_status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curl_error = curl_error($ch);
+
+            if ($raw_response === false || $http_status >= 400) {
+                $decoded_error = json_decode((string)$raw_response, true);
+                $error_message = $decoded_error['message'] ?? ($curl_error ?: "HTTP $http_status");
+                if (stripos($error_message, 'paywise_exec_sql') !== false) {
+                    throw new RuntimeException(
+                        'Supabase HTTPS SQL bridge (paywise_exec_sql) is not installed yet. Please paste and run the updated supabase_schema.sql in Supabase SQL Editor, or set DATABASE_URL in Vercel Environment Variables.'
+                    );
+                }
+                throw new RuntimeException('Supabase query error: ' . $error_message);
+            }
+
+            $decoded = json_decode((string)$raw_response, true);
+            return [
+                'rows' => is_array($decoded['rows'] ?? null) ? $decoded['rows'] : [],
+                'affected_rows' => (int)($decoded['affected_rows'] ?? 0),
+                'insert_id' => (int)($decoded['insert_id'] ?? 0),
+            ];
+        }
+
+        public function prepare(string $sql): SupabaseHttpRpcStatement
+        {
+            return new SupabaseHttpRpcStatement($this, SupabasePgConnection::translateSql($sql));
+        }
+
+        public function query(string $sql)
+        {
+            if (preg_match('/^\s*SET\s+time_zone/i', $sql)) {
+                return true;
+            }
+            $postgres_sql = SupabasePgConnection::translateSql($sql);
+            $rpc_result = $this->executeRpc($postgres_sql);
+            $this->affected_rows = $rpc_result['affected_rows'];
+            if ($rpc_result['insert_id'] > 0) {
+                $this->insert_id = $rpc_result['insert_id'];
+            }
+            if (preg_match('/^\s*(SELECT|SHOW|WITH)\b/i', $postgres_sql)) {
+                return new SupabasePgResult($rpc_result['rows']);
+            }
+            return true;
+        }
+
+        public function real_escape_string(string $string_to_escape): string
+        {
+            return str_replace("'", "''", $string_to_escape);
+        }
+
+        public function set_charset(string $charset_name): bool
+        {
+            return true;
+        }
+
+        public function begin_transaction(): bool
+        {
+            return true;
+        }
+
+        public function commit(): bool
+        {
+            return true;
+        }
+
+        public function rollback(): bool
+        {
+            return true;
+        }
+    }
+
     class SupabaseSessionHandler implements SessionHandlerInterface
     {
-        private PDO $pdo_instance;
+        private $connection_instance;
 
-        public function __construct(PDO $pdo)
+        public function __construct($connection)
         {
-            $this->pdo_instance = $pdo;
+            $this->connection_instance = $connection;
         }
 
         public function open(string $save_path, string $session_name): bool
@@ -315,13 +488,14 @@ if (!class_exists('SupabasePgResult')) {
         public function read(string $session_id): string|false
         {
             try {
-                $statement = $this->pdo_instance->prepare('SELECT session_data FROM public.app_sessions WHERE session_id = ? LIMIT 1');
-                $statement->execute([$session_id]);
-                $row = $statement->fetch(PDO::FETCH_ASSOC);
+                $statement = $this->connection_instance->prepare('SELECT session_data FROM public.app_sessions WHERE session_id = ? LIMIT 1');
+                $statement->bind_param('s', $session_id);
+                $statement->execute();
+                $row = $statement->get_result()->fetch_assoc();
                 return $row ? (string)$row['session_data'] : '';
             } catch (Throwable $error) {
                 try {
-                    $this->pdo_instance->exec("CREATE TABLE IF NOT EXISTS public.app_sessions (session_id VARCHAR(128) PRIMARY KEY, session_data TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+                    $this->connection_instance->query("CREATE TABLE IF NOT EXISTS public.app_sessions (session_id VARCHAR(128) PRIMARY KEY, session_data TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
                 } catch (Throwable $ignored) {
                 }
                 return '';
@@ -331,11 +505,12 @@ if (!class_exists('SupabasePgResult')) {
         public function write(string $session_id, string $session_data): bool
         {
             try {
-                $statement = $this->pdo_instance->prepare(
+                $statement = $this->connection_instance->prepare(
                     'INSERT INTO public.app_sessions (session_id, session_data, updated_at) VALUES (?, ?, NOW())
                      ON CONFLICT (session_id) DO UPDATE SET session_data = EXCLUDED.session_data, updated_at = NOW()'
                 );
-                return $statement->execute([$session_id, $session_data]);
+                $statement->bind_param('ss', $session_id, $session_data);
+                return $statement->execute();
             } catch (Throwable $error) {
                 return false;
             }
@@ -344,8 +519,9 @@ if (!class_exists('SupabasePgResult')) {
         public function destroy(string $session_id): bool
         {
             try {
-                $statement = $this->pdo_instance->prepare('DELETE FROM public.app_sessions WHERE session_id = ?');
-                return $statement->execute([$session_id]);
+                $statement = $this->connection_instance->prepare('DELETE FROM public.app_sessions WHERE session_id = ?');
+                $statement->bind_param('s', $session_id);
+                return $statement->execute();
             } catch (Throwable $error) {
                 return false;
             }
@@ -353,34 +529,57 @@ if (!class_exists('SupabasePgResult')) {
 
         public function gc(int $max_lifetime): int|false
         {
-            try {
-                $statement = $this->pdo_instance->prepare("DELETE FROM public.app_sessions WHERE updated_at < NOW() - (? * INTERVAL '1 second')");
-                $statement->execute([$max_lifetime]);
-                return $statement->rowCount();
-            } catch (Throwable $error) {
-                return 0;
-            }
+            return 0;
         }
     }
 }
 
-$cloudDatabaseUrl = trim((string)(getenv('DATABASE_URL') ?: getenv('SUPABASE_DATABASE_URL') ?: getenv('NEON_DATABASE_URL') ?: ''));
+$cloudDatabaseUrl = trim((string)(
+    getenv('DATABASE_URL')
+    ?: getenv('POSTGRES_URL')
+    ?: getenv('POSTGRES_PRISMA_URL')
+    ?: getenv('POSTGRES_URL_NON_POOLING')
+    ?: getenv('SUPABASE_DATABASE_URL')
+    ?: getenv('SUPABASE_DB_URL')
+    ?: getenv('NEON_DATABASE_URL')
+    ?: ''
+));
 
-if ($cloudDatabaseUrl === '' && getenv('SUPABASE_DB_HOST')) {
-    $postgres_host = getenv('SUPABASE_DB_HOST');
+if ($cloudDatabaseUrl === '' && (getenv('SUPABASE_DB_HOST') || getenv('POSTGRES_HOST'))) {
+    $postgres_host = getenv('SUPABASE_DB_HOST') ?: getenv('POSTGRES_HOST');
     $postgres_port = getenv('SUPABASE_DB_PORT') ?: 5432;
-    $postgres_user = rawurlencode(getenv('SUPABASE_DB_USER') ?: 'postgres');
-    $postgres_pass = rawurlencode(getenv('SUPABASE_DB_PASS') ?: '');
-    $postgres_name = ltrim(getenv('SUPABASE_DB_NAME') ?: 'postgres', '/');
+    $postgres_user = rawurlencode(getenv('SUPABASE_DB_USER') ?: getenv('POSTGRES_USER') ?: 'postgres');
+    $postgres_pass = rawurlencode(getenv('SUPABASE_DB_PASS') ?: getenv('POSTGRES_PASSWORD') ?: '');
+    $postgres_name = ltrim(getenv('SUPABASE_DB_NAME') ?: getenv('POSTGRES_DATABASE') ?: 'postgres', '/');
     $cloudDatabaseUrl = "postgresql://{$postgres_user}:{$postgres_pass}@{$postgres_host}:{$postgres_port}/{$postgres_name}?sslmode=require";
 }
+
+$isRunningOnVercel = getenv('VERCEL') !== false || !empty($_ENV['VERCEL']) || is_dir('/var/task');
+$supabaseProjectUrl = trim((string)(getenv('SUPABASE_URL') ?: getenv('NEXT_PUBLIC_SUPABASE_URL') ?: ''));
+$supabaseApiKey = trim((string)(getenv('SUPABASE_SERVICE_ROLE_KEY') ?: getenv('SUPABASE_ANON_KEY') ?: getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY') ?: ''));
 
 if ($cloudDatabaseUrl !== '' && preg_match('/^postgres(?:ql)?:\/\//i', $cloudDatabaseUrl)) {
     try {
         $conn = new SupabasePgConnection($cloudDatabaseUrl);
     } catch (Throwable $connection_exception) {
-        die('Cloud database connection failed: ' . $connection_exception->getMessage());
+        die('Supabase PostgreSQL connection failed: ' . $connection_exception->getMessage());
     }
+} elseif (($isRunningOnVercel || getenv('SUPABASE_USE_HTTP') === '1') && $supabaseProjectUrl !== '' && $supabaseApiKey !== '') {
+    $conn = new SupabaseHttpRpcConnection($supabaseProjectUrl, $supabaseApiKey);
+} elseif ($isRunningOnVercel) {
+    http_response_code(500);
+    die(
+        '<div style="font-family:system-ui,sans-serif;max-width:640px;margin:48px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#0f172a;">'
+        . '<h2 style="margin-top:0;color:#dc2626;">Vercel Database Environment Variables Missing</h2>'
+        . '<p>Pay-wise is running on Vercel, but no Supabase database credentials were found in Vercel Environment Variables.</p>'
+        . '<p>Go to <strong>Vercel Dashboard &rarr; Project Settings &rarr; Environment Variables</strong> and add either:</p>'
+        . '<ol style="line-height:1.7;">'
+        . '<li><code>DATABASE_URL</code> (from Supabase Dashboard &rarr; Connect &rarr; Transaction Pooler URI), <strong>OR</strong></li>'
+        . '<li><code>SUPABASE_URL</code> + <code>SUPABASE_SERVICE_ROLE_KEY</code> (and run the latest <code>supabase_schema.sql</code> in Supabase SQL Editor).</li>'
+        . '</ol>'
+        . '<p style="margin-bottom:0;font-size:13px;color:#475569;">After saving the environment variables in Vercel, trigger a <strong>Redeploy</strong>.</p>'
+        . '</div>'
+    );
 } else {
     $database_host = getenv('DB_HOST') ?: 'localhost';
     $database_user = getenv('DB_USER') ?: 'root';
@@ -397,8 +596,8 @@ if ($cloudDatabaseUrl !== '' && preg_match('/^postgres(?:ql)?:\/\//i', $cloudDat
 }
 
 if (session_status() === PHP_SESSION_NONE) {
-    if ($conn instanceof SupabasePgConnection) {
-        session_set_save_handler(new SupabaseSessionHandler($conn->getPdo()), true);
+    if ($conn instanceof SupabasePgConnection || $conn instanceof SupabaseHttpRpcConnection) {
+        session_set_save_handler(new SupabaseSessionHandler($conn), true);
     }
     $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
