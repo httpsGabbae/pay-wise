@@ -5,43 +5,37 @@ require_once __DIR__ . '/../includes/layout.php';
 $logged_in_admin_name = $_SESSION['admin_name'] ?? 'Admin';
 $current_system_role = admin_role();
 
-// 1. Core Employee and Directory Statistics
-$total_employees_query = $conn->query("SELECT COUNT(*) AS total_count FROM employees");
-$total_employees_count = (int)$total_employees_query->fetch_assoc()['total_count'];
+// 1. Core Dashboard KPIs in One Combined Database Query
+$dashboard_metrics_query = $conn->query("
+    SELECT
+        (SELECT COUNT(*) FROM employees) AS total_employees_count,
+        (SELECT COUNT(*) FROM employees WHERE COALESCE(employment_status, '') NOT IN ('Separated', 'Inactive')) AS active_employees_count,
+        (SELECT COUNT(*) FROM employees WHERE basic_salary > 0) AS salaried_employees_count,
+        (SELECT COALESCE(AVG(basic_salary), 0) FROM employees WHERE basic_salary > 0) AS average_monthly_salary,
+        (SELECT COUNT(*) FROM employee_loans WHERE status = 'Active') AS active_loans_count,
+        (SELECT COALESCE(SUM(remaining_balance), 0) FROM employee_loans WHERE status = 'Active') AS active_loans_balance,
+        (SELECT COUNT(*) FROM attendance WHERE status = 'Late' OR time_out IS NULL) AS attendance_exceptions_count,
+        (SELECT COALESCE(SUM(CASE WHEN status IN ('Approved', 'Paid') THEN net_pay ELSE 0 END), 0) FROM payroll_records) AS total_paid_amount,
+        (SELECT COALESCE(SUM(CASE WHEN status = 'Draft' THEN net_pay ELSE 0 END), 0) FROM payroll_records) AS draft_payroll_amount,
+        (SELECT MAX(attendance_date) FROM attendance) AS latest_attendance_date
+");
+$dashboard_metrics = $dashboard_metrics_query ? ($dashboard_metrics_query->fetch_assoc() ?: []) : [];
 
-$active_employees_query = $conn->query("SELECT COUNT(*) AS active_count FROM employees WHERE COALESCE(employment_status, '') NOT IN ('Separated', 'Inactive')");
-$active_employees_count = (int)$active_employees_query->fetch_assoc()['active_count'];
-
-// 2. Average Salary Calculation Across Salaried Staff
-$salary_stats_query = $conn->query("SELECT COUNT(*) AS salaried_count, COALESCE(AVG(basic_salary), 0) AS average_salary FROM employees WHERE basic_salary > 0");
-$salary_stats = $salary_stats_query->fetch_assoc();
-$salaried_employees_count = (int)$salary_stats['salaried_count'];
-$average_monthly_salary = (float)$salary_stats['average_salary'];
-
-// 3. Outstanding Financial Liabilities (Active loans and draft payroll)
-$active_loans_query = $conn->query("SELECT COUNT(*) AS loan_count, COALESCE(SUM(remaining_balance), 0) AS loan_balance FROM employee_loans WHERE status = 'Active'");
-$active_loans_data = $active_loans_query->fetch_assoc();
-$active_loans_count = (int)$active_loans_data['loan_count'];
-$active_loans_balance = (float)$active_loans_data['loan_balance'];
-
-$draft_payroll_query = $conn->query("SELECT COALESCE(SUM(net_pay), 0) AS draft_total FROM payroll_records WHERE status = 'Draft'");
-$draft_payroll_liability = (float)$draft_payroll_query->fetch_assoc()['draft_total'];
-
+$total_employees_count = (int)($dashboard_metrics['total_employees_count'] ?? 0);
+$active_employees_count = (int)($dashboard_metrics['active_employees_count'] ?? 0);
+$salaried_employees_count = (int)($dashboard_metrics['salaried_employees_count'] ?? 0);
+$average_monthly_salary = (float)($dashboard_metrics['average_monthly_salary'] ?? 0);
+$active_loans_count = (int)($dashboard_metrics['active_loans_count'] ?? 0);
+$active_loans_balance = (float)($dashboard_metrics['active_loans_balance'] ?? 0);
+$draft_payroll_liability = (float)($dashboard_metrics['draft_payroll_amount'] ?? 0);
 $total_outstanding_liability = $active_loans_balance + $draft_payroll_liability;
-
-// 4. Pending Employee Requests & Exceptions
-$attendance_exceptions_query = $conn->query("SELECT COUNT(*) AS exceptions_count FROM attendance WHERE status = 'Late' OR time_out IS NULL");
-$attendance_exceptions_count = (int)$attendance_exceptions_query->fetch_assoc()['exceptions_count'];
-
+$attendance_exceptions_count = (int)($dashboard_metrics['attendance_exceptions_count'] ?? 0);
 $total_pending_requests_count = $attendance_exceptions_count + $active_loans_count;
+$total_payroll_payout_amount = (float)($dashboard_metrics['total_paid_amount'] ?? 0);
+$delayed_payroll_payout_amount = $draft_payroll_liability;
+$latest_recorded_date = !empty($dashboard_metrics['latest_attendance_date']) ? $dashboard_metrics['latest_attendance_date'] : date('Y-m-d');
 
-// 5. Payroll History Summaries
-$payout_summary_query = $conn->query("SELECT COALESCE(SUM(CASE WHEN status IN ('Approved', 'Paid') THEN net_pay ELSE 0 END), 0) AS total_paid, COALESCE(SUM(CASE WHEN status = 'Draft' THEN net_pay ELSE 0 END), 0) AS delayed_paid FROM payroll_records");
-$payout_summary_data = $payout_summary_query->fetch_assoc();
-$total_payroll_payout_amount = (float)$payout_summary_data['total_paid'];
-$delayed_payroll_payout_amount = (float)$payout_summary_data['delayed_paid'];
-
-// 6. Dynamic Real Payroll History Periods for Bar Chart
+// 2. Dynamic Real Payroll History Periods for Bar Chart
 $periods_history_query = $conn->query("
     SELECT 
         COALESCE(MAX(pp.period_code), CONCAT(DATE_FORMAT(pr.period_start, '%b %d'), ' - ', DATE_FORMAT(pr.period_end, '%b %d'))) AS period_name,
@@ -69,25 +63,33 @@ if ($periods_history_query) {
     }
 }
 
-// 7. Dynamic Real Requests Timeline (7 recorded or recent days)
-$latest_attendance_date_query = $conn->query("SELECT MAX(attendance_date) AS max_date FROM attendance");
-$latest_recorded_date = $latest_attendance_date_query->fetch_assoc()['max_date'] ?: date('Y-m-d');
+// 3. Dynamic Real Requests Timeline (7 recorded or recent days in 1 query)
+$timeline_start_date = date('Y-m-d', strtotime("$latest_recorded_date -6 days"));
+$daily_exceptions_by_date = [];
+$timeline_stmt = $conn->prepare("
+    SELECT attendance_date, COUNT(*) AS daily_exceptions
+    FROM attendance
+    WHERE attendance_date BETWEEN ? AND ? AND (status = 'Late' OR time_out IS NULL)
+    GROUP BY attendance_date
+");
+$timeline_stmt->bind_param('ss', $timeline_start_date, $latest_recorded_date);
+$timeline_stmt->execute();
+$timeline_result = $timeline_stmt->get_result();
+while ($timeline_row = $timeline_result->fetch_assoc()) {
+    $daily_exceptions_by_date[$timeline_row['attendance_date']] = (int)$timeline_row['daily_exceptions'];
+}
 
 $request_timeline_points = [];
 $highest_request_daily_count = 1;
 for ($day_offset = 6; $day_offset >= 0; $day_offset--) {
     $current_date_str = date('Y-m-d', strtotime("$latest_recorded_date -$day_offset days"));
     $date_short_label = date('d M', strtotime($current_date_str));
-    
-    $daily_count_stmt = $conn->prepare("SELECT COUNT(*) AS daily_exceptions FROM attendance WHERE attendance_date = ? AND (status = 'Late' OR time_out IS NULL)");
-    $daily_count_stmt->bind_param('s', $current_date_str);
-    $daily_count_stmt->execute();
-    $daily_exceptions_count = (int)$daily_count_stmt->get_result()->fetch_assoc()['daily_exceptions'];
-    
+    $daily_exceptions_count = $daily_exceptions_by_date[$current_date_str] ?? 0;
+
     if ($daily_exceptions_count > $highest_request_daily_count) {
         $highest_request_daily_count = $daily_exceptions_count;
     }
-    
+
     $request_timeline_points[] = [
         'date_string' => $current_date_str,
         'date_label' => $date_short_label,
@@ -95,7 +97,7 @@ for ($day_offset = 6; $day_offset >= 0; $day_offset--) {
     ];
 }
 
-// 8. Fetch Active Departments for Filter Dropdown
+// 4. Fetch Active Departments for Filter Dropdown
 $departments_query = $conn->query("SELECT department_name FROM departments WHERE status = 'Active' ORDER BY department_name ASC");
 $active_departments_list = [];
 if ($departments_query) {
@@ -104,8 +106,8 @@ if ($departments_query) {
     }
 }
 
-// 9. Fetch ONLY Real Employees with 10-per-page Pagination
-$total_directory_count = (int)$conn->query("SELECT COUNT(*) AS c FROM employees")->fetch_assoc()['c'];
+// 5. Fetch ONLY Real Employees with 10-per-page Pagination
+$total_directory_count = $total_employees_count;
 $employees_per_page = 10;
 $current_emp_page = max(1, (int)($_GET['emp_page'] ?? 1));
 $total_emp_pages = max(1, (int)ceil($total_directory_count / $employees_per_page));

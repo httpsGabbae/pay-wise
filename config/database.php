@@ -385,6 +385,7 @@ if (!class_exists('SupabasePgResult')) {
     {
         private string $supabase_url;
         private string $api_key;
+        private $curl_handle = null;
         public int $connect_errno = 0;
         public string $connect_error = '';
         public int $insert_id = 0;
@@ -394,27 +395,32 @@ if (!class_exists('SupabasePgResult')) {
         {
             $this->supabase_url = rtrim($supabase_url, '/');
             $this->api_key = $api_key;
-        }
-
-        public function executeRpc(string $sql): array
-        {
             $endpoint = $this->supabase_url . '/rest/v1/rpc/paywise_exec_sql';
-            $payload = json_encode(['sql_query' => $sql]);
-            $ch = curl_init($endpoint);
-            curl_setopt_array($ch, [
+            $this->curl_handle = curl_init($endpoint);
+            curl_setopt_array($this->curl_handle, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST => true,
-                CURLOPT_POSTFIELDS => $payload,
                 CURLOPT_HTTPHEADER => [
                     'Content-Type: application/json',
                     'apikey: ' . $this->api_key,
                     'Authorization: Bearer ' . $this->api_key,
+                    'Connection: keep-alive',
                 ],
+                CURLOPT_TCP_KEEPALIVE => 1,
                 CURLOPT_TIMEOUT => 15,
             ]);
-            $raw_response = curl_exec($ch);
-            $http_status = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            $curl_error = curl_error($ch);
+            if (defined('CURL_HTTP_VERSION_2_0')) {
+                curl_setopt($this->curl_handle, CURLOPT_HTTP_VERSION, CURL_HTTP_VERSION_2_0);
+            }
+        }
+
+        public function executeRpc(string $sql): array
+        {
+            $payload = json_encode(['sql_query' => $sql]);
+            curl_setopt($this->curl_handle, CURLOPT_POSTFIELDS, $payload);
+            $raw_response = curl_exec($this->curl_handle);
+            $http_status = (int)curl_getinfo($this->curl_handle, CURLINFO_HTTP_CODE);
+            $curl_error = curl_error($this->curl_handle);
 
             if ($raw_response === false || $http_status >= 400) {
                 $decoded_error = json_decode((string)$raw_response, true);
@@ -486,6 +492,8 @@ if (!class_exists('SupabasePgResult')) {
     class SupabaseSessionHandler implements SessionHandlerInterface
     {
         private $connection_instance;
+        private ?string $last_read_session_id = null;
+        private ?string $last_read_session_data = null;
 
         public function __construct($connection)
         {
@@ -509,7 +517,10 @@ if (!class_exists('SupabasePgResult')) {
                 $statement->bind_param('s', $session_id);
                 $statement->execute();
                 $row = $statement->get_result()->fetch_assoc();
-                return $row ? (string)$row['session_data'] : '';
+                $data = $row ? (string)$row['session_data'] : '';
+                $this->last_read_session_id = $session_id;
+                $this->last_read_session_data = $data;
+                return $data;
             } catch (Throwable $error) {
                 try {
                     $this->connection_instance->query("CREATE TABLE IF NOT EXISTS public.app_sessions (session_id VARCHAR(128) PRIMARY KEY, session_data TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
@@ -521,12 +532,17 @@ if (!class_exists('SupabasePgResult')) {
 
         public function write(string $session_id, string $session_data): bool
         {
+            if ($this->last_read_session_id === $session_id && $this->last_read_session_data === $session_data) {
+                return true;
+            }
             try {
                 $statement = $this->connection_instance->prepare(
                     'INSERT INTO public.app_sessions (session_id, session_data, updated_at) VALUES (?, ?, NOW())
                      ON CONFLICT (session_id) DO UPDATE SET session_data = EXCLUDED.session_data, updated_at = NOW()'
                 );
                 $statement->bind_param('ss', $session_id, $session_data);
+                $this->last_read_session_id = $session_id;
+                $this->last_read_session_data = $session_data;
                 return $statement->execute();
             } catch (Throwable $error) {
                 return false;
