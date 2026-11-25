@@ -6,6 +6,8 @@
 .env
 .env.*
 !.env.example
+env.local
+*.local
 config/database.local.php
 *.key
 *.pem

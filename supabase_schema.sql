@@ -301,13 +301,17 @@ CREATE TABLE IF NOT EXISTS public.other_income (
     period_id INTEGER REFERENCES public.payroll_periods (period_id) ON DELETE SET NULL,
     income_name VARCHAR(100) NOT NULL,
     amount NUMERIC(12,2) NOT NULL DEFAULT 0.00,
+    is_taxable SMALLINT NOT NULL DEFAULT 1,
     pay_date DATE,
     notes VARCHAR(255),
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+ALTER TABLE IF EXISTS public.other_income ADD COLUMN IF NOT EXISTS is_taxable SMALLINT NOT NULL DEFAULT 1;
+
 CREATE INDEX IF NOT EXISTS idx_income_emp ON public.other_income (employee_id);
 CREATE INDEX IF NOT EXISTS idx_income_period ON public.other_income (period_id);
+CREATE INDEX IF NOT EXISTS idx_income_taxable ON public.other_income (is_taxable);
 
 -- ------------------------------------------------------------
 -- 13. OTHER DEDUCTIONS
@@ -401,3 +405,13 @@ SELECT setval(pg_get_serial_sequence('public.loan_repayments', 'repayment_id'), 
 SELECT setval(pg_get_serial_sequence('public.other_income', 'income_id'), GREATEST(COALESCE((SELECT MAX(income_id) FROM public.other_income), 1), 1));
 SELECT setval(pg_get_serial_sequence('public.other_deductions', 'deduction_id'), GREATEST(COALESCE((SELECT MAX(deduction_id) FROM public.other_deductions), 1), 1));
 SELECT setval(pg_get_serial_sequence('public.payroll_records', 'payroll_id'), GREATEST(COALESCE((SELECT MAX(payroll_id) FROM public.payroll_records), 1), 1));
+
+-- ------------------------------------------------------------
+-- 17. Supabase Permissions & Grants
+-- ------------------------------------------------------------
+GRANT USAGE ON SCHEMA public TO anon, authenticated, service_role;
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO postgres, anon, authenticated, service_role;
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO postgres, anon, authenticated, service_role;
+
