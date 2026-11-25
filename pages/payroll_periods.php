@@ -91,14 +91,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $loanInstallments = round($loanInstallments, 2);
 
                     // 2. Calculate itemized other income for this period
-                    $otherIncStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS total_inc FROM other_income WHERE employee_id=? AND (period_id=? OR pay_date=?)');
-                    $otherIncStmt->bind_param('iis', $empId, $periodId, $period['pay_date']);
+                    $otherIncStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS total_inc FROM other_income WHERE employee_id=? AND (period_id=? OR (pay_date BETWEEN ? AND ?))');
+                    $otherIncStmt->bind_param('iiss', $empId, $periodId, $period['start_date'], $period['end_date']);
                     $otherIncStmt->execute();
                     $otherIncAmount = round((float)$otherIncStmt->get_result()->fetch_assoc()['total_inc'], 2);
 
                     // 3. Calculate itemized other deductions for this period
-                    $otherDedStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS total_ded FROM other_deductions WHERE employee_id=? AND (period_id=? OR pay_date=?)');
-                    $otherDedStmt->bind_param('iis', $empId, $periodId, $period['pay_date']);
+                    $otherDedStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS total_ded FROM other_deductions WHERE employee_id=? AND (period_id=? OR (pay_date BETWEEN ? AND ?))');
+                    $otherDedStmt->bind_param('iiss', $empId, $periodId, $period['start_date'], $period['end_date']);
                     $otherDedStmt->execute();
                     $otherDedAmount = round((float)$otherDedStmt->get_result()->fetch_assoc()['total_ded'], 2);
 
@@ -153,7 +153,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     while ($pRow = $pRows->fetch_assoc()) {
                         $pId = (int)$pRow['payroll_id'];
                         $empId = (int)$pRow['employee_id'];
-                        $pDate = $pRow['pay_date'];
+                        $pDate = !empty($pRow['pay_date']) ? $pRow['pay_date'] : date('Y-m-d');
 
                         // Check if repayment already logged for this payroll
                         $chkRepay = $conn->prepare('SELECT repayment_id FROM loan_repayments WHERE payroll_id=? LIMIT 1');

@@ -17,7 +17,7 @@ function emp_icon(string $name): string {
 function employee_sidebar(string $active): void {
     echo '<script>try{var _b=document.body,_m=window.matchMedia("(max-width: 820px)").matches;if(_m){if(localStorage.getItem("paywiseMobileSidebarExpanded")!=="true")_b.classList.add("sidebar-collapsed");}else if(localStorage.getItem("paywiseSidebarCollapsed")==="true")_b.classList.add("sidebar-collapsed");if(localStorage.getItem("paywiseTheme")==="dark")_b.classList.add("dark-mode");}catch(_e){}</script>';
     $items = [
-        ['dashboard', 'dashboard', 'Overview', 'dashboard.php'],
+        ['dashboard', 'dashboard', 'Dashboard', 'dashboard.php'],
         ['attendance', 'calendar', 'Attendance', 'attendance.php'],
         ['payroll', 'wallet', 'Payslips', 'payroll.php'],
         ['loans', 'credit', 'Loans', 'loans.php'],

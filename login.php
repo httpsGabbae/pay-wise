@@ -1,4 +1,9 @@
 <?php
+require_once __DIR__ . '/config/database.php';
+if (!empty($_SESSION['admin_id'])) {
+    header('Location: pages/admin_dashboard.php');
+    exit;
+}
 ?>
 <!doctype html>
 <html lang="en">

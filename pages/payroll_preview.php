@@ -1,14 +1,24 @@
 <?php
-require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../config/database.php';
 
 $isAdmin = !empty($_SESSION['admin_id']);
 $sessionEmployeeId = (int)($_SESSION['employee_id'] ?? 0);
 
 if ($isAdmin) {
+    require_once __DIR__ . '/../includes/auth.php';
     require_role('superadmin', 'finance');
 } elseif ($sessionEmployeeId <= 0) {
     http_response_code(403);
     exit('<div class="print-error">Access denied.</div>');
+} else {
+    $empChk = $conn->prepare('SELECT employment_status FROM employees WHERE employee_id=? LIMIT 1');
+    $empChk->bind_param('i', $sessionEmployeeId);
+    $empChk->execute();
+    $empRow = $empChk->get_result()->fetch_assoc();
+    if (!$empRow || !is_active_employment_status($empRow['employment_status'] ?? '')) {
+        http_response_code(403);
+        exit('<div class="print-error">Your employee account is not active.</div>');
+    }
 }
 
 $id = (int)($_GET['id'] ?? 0);

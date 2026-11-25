@@ -26,9 +26,14 @@ foreach ($rows as $row) { $d = $row['department'] ?: 'Unassigned'; $departments[
 arsort($departments);
 
 $trend = [];
-for ($i = 5; $i >= 0; $i--) {
-    $key = date('Y-m', strtotime("first day of -{$i} month", strtotime($monthStart)));
-    $trend[$key] = ['label'=>date('M', strtotime($key . '-01')), 'gross'=>0, 'net'=>0];
+for ($month_offset = 5; $month_offset >= 0; $month_offset--) {
+    $month_key = date('Y-m', strtotime("first day of -{$month_offset} month", strtotime($monthStart)));
+    $trend[$month_key] = [
+        'label' => date('M', strtotime($month_key . '-01')),
+        'full_name' => date('F Y', strtotime($month_key . '-01')),
+        'gross' => 0.0,
+        'net' => 0.0
+    ];
 }
 $trendStart = array_key_first($trend) . '-01';
 $trendEnd = date('Y-m-t', strtotime($monthStart));
@@ -42,14 +47,66 @@ while ($row = $trendResult->fetch_assoc()) {
         $trend[$row['ym']]['net'] = (float)$row['net'];
     }
 }
-$trendMax = 1;
-foreach ($trend as $point) $trendMax = max($trendMax, $point['gross'], $point['net']);
+
+$highest_payroll_amount = 0.0;
+foreach ($trend as $trend_point) {
+    if ((float)$trend_point['gross'] > $highest_payroll_amount) {
+        $highest_payroll_amount = (float)$trend_point['gross'];
+    }
+    if ((float)$trend_point['net'] > $highest_payroll_amount) {
+        $highest_payroll_amount = (float)$trend_point['net'];
+    }
+}
+
+if ($highest_payroll_amount <= 0.0) {
+    $chart_ceiling_amount = 50000.0;
+    $chart_step_amount = 10000.0;
+} else {
+    $raw_target_step = $highest_payroll_amount / 5.0;
+    $step_order_of_magnitude = pow(10, floor(log10($raw_target_step)));
+    $normalized_step_value = $raw_target_step / $step_order_of_magnitude;
+
+    if ($normalized_step_value <= 1.0) {
+        $chart_step_amount = 1.0 * $step_order_of_magnitude;
+    } elseif ($normalized_step_value <= 2.0) {
+        $chart_step_amount = 2.0 * $step_order_of_magnitude;
+    } elseif ($normalized_step_value <= 2.5) {
+        $chart_step_amount = 2.5 * $step_order_of_magnitude;
+    } elseif ($normalized_step_value <= 5.0) {
+        $chart_step_amount = 5.0 * $step_order_of_magnitude;
+    } else {
+        $chart_step_amount = 10.0 * $step_order_of_magnitude;
+    }
+
+    $chart_ceiling_amount = ceil($highest_payroll_amount / $chart_step_amount) * $chart_step_amount;
+    $number_of_intervals = (int)round($chart_ceiling_amount / $chart_step_amount);
+    if ($number_of_intervals < 4) {
+        $chart_step_amount = $chart_step_amount / 2.0;
+    }
+}
+
+$chart_gridline_amounts = [];
+$chart_gridline_labels = [];
+$current_step_count = (int)round($chart_ceiling_amount / $chart_step_amount);
+for ($step_index = $current_step_count; $step_index >= 0; $step_index--) {
+    $gridline_value = $step_index * $chart_step_amount;
+    $chart_gridline_amounts[] = $gridline_value;
+
+    if ($gridline_value >= 1000000.0) {
+        $formatted_axis_label = '₱' . rtrim(rtrim(number_format($gridline_value / 1000000.0, 1), '0'), '.') . 'M';
+    } elseif ($gridline_value >= 1000.0) {
+        $formatted_axis_label = '₱' . rtrim(rtrim(number_format($gridline_value / 1000.0, 1), '0'), '.') . 'K';
+    } else {
+        $formatted_axis_label = '₱' . number_format($gridline_value, 0);
+    }
+    $chart_gridline_labels[] = $formatted_axis_label;
+}
 ?>
 <!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <!-- FAVICON: Put your favicon file at /assets/favicon.png -->
-<link rel="icon" type="image/png" href="../assets/favicon.png?v=lcc1"><title>Lipa City Colleges · Reports</title><link rel="stylesheet" href="../assets/css/app.css?v=20260909-rail4"><link rel="stylesheet" href="../assets/css/apple-system.css?v=20261112-clean1"><script src="../assets/js/app.js?v=20261112-clean1" defer></script><script src="../assets/js/apple-motion.js?v=20261112-clean1" defer></script></head>
+<link rel="icon" type="image/png" href="../assets/favicon.png?v=lcc1"><title>Lipa City Colleges · Reports</title><link rel="stylesheet" href="../assets/css/app.css?v=20260909-rail4"><link rel="stylesheet" href="../assets/css/apple-system.css?v=20261112-clean1"><link rel="stylesheet" href="../assets/css/reports_six_month_trend_chart.css?v=20261123-1"><script src="../assets/js/app.js?v=20261112-clean1" defer></script><script src="../assets/js/apple-motion.js?v=20261112-clean1" defer></script><script src="../assets/js/reports_six_month_trend_chart.js?v=20261123-1" defer></script></head>
 <body><div class="app">
 <?php sidebar('reports'); ?>
 <main class="main">
@@ -69,22 +126,74 @@ foreach ($trend as $point) $trendMax = max($trendMax, $point['gross'], $point['n
         <div class="card report-stat"><span class="report-stat-icon"><?php echo ui_icon('shield'); ?></span><div><small>Paid</small><strong><?php echo $paidCount; ?></strong></div></div>
     </section>
 
-    <section class="card report-trend-card">
-        <div class="card-head report-trend-head">
-            <div><h2>Six-Month Trend</h2></div>
-        </div>
-        <div class="compact-bar-chart">
-            <div class="compact-bar-axis"><span><?php echo money($trendMax); ?></span><span>0</span></div>
-            <div class="compact-bars">
-                <?php foreach ($trend as $point): $grossH=max(2,round(($point['gross']/$trendMax)*100)); $netH=max(2,round(($point['net']/$trendMax)*100)); ?>
-                <div class="compact-bar-group" title="<?php echo e($point['label']); ?> — Gross: <?php echo money($point['gross']); ?> · Net: <?php echo money($point['net']); ?>">
-                    <div class="compact-bar-columns"><i class="gross" style="height:<?php echo $grossH; ?>%"></i><i class="net" style="height:<?php echo $netH; ?>%"></i></div>
-                    <span><?php echo e($point['label']); ?></span>
-                </div>
-                <?php endforeach; ?>
+    <section class="card report-trend-card" aria-label="Six-Month Payroll Trend">
+        <div class="trend-card-top-header">
+            <div>
+                <h2 class="trend-card-heading-title">Six-Month Trend</h2>
+                <p class="trend-card-heading-subtitle">Gross vs. Net payroll comparison over the past 6 months</p>
+            </div>
+            <div class="trend-chart-legend">
+                <span class="legend-item"><i class="legend-swatch gross-payroll"></i> Gross Payroll</span>
+                <span class="legend-item"><i class="legend-swatch net-payroll"></i> Net Payroll</span>
             </div>
         </div>
-        <div class="compact-bar-legend"><span><i class="gross"></i>Gross</span><span><i class="net"></i>Net</span></div>
+
+        <div class="payroll-analytics-chart-container">
+            <div class="chart-vertical-axis" aria-hidden="true">
+                <?php foreach ($chart_gridline_labels as $axis_label): ?>
+                    <span><?php echo e($axis_label); ?></span>
+                <?php endforeach; ?>
+            </div>
+
+            <div class="chart-main-plot-area">
+                <div class="chart-horizontal-gridlines" aria-hidden="true">
+                    <?php foreach ($chart_gridline_amounts as $gridline_amount): ?>
+                        <div class="horizontal-gridline<?php echo $gridline_amount == 0 ? ' baseline' : ''; ?>"></div>
+                    <?php endforeach; ?>
+                </div>
+
+                <div class="chart-months-bar-groups">
+                    <?php foreach ($trend as $month_key => $point): 
+                        $is_zero_gross = ($point['gross'] <= 0);
+                        $is_zero_net = ($point['net'] <= 0);
+                        $gross_percentage_height = $is_zero_gross ? 0 : max(2, round(($point['gross'] / $chart_ceiling_amount) * 100));
+                        $net_percentage_height = $is_zero_net ? 0 : max(2, round(($point['net'] / $chart_ceiling_amount) * 100));
+                        $is_both_zero = ($is_zero_gross && $is_zero_net);
+                        $is_active_month = ($month_key === $month);
+                    ?>
+                    <div class="month-bar-group<?php echo $is_both_zero ? ' has-zero-payroll' : ''; ?>"
+                         tabindex="0"
+                         role="group"
+                         aria-label="<?php echo e($point['full_name']); ?>: Gross <?php echo money($point['gross']); ?>, Net <?php echo money($point['net']); ?>"
+                         data-month-name="<?php echo e($point['full_name']); ?>"
+                         data-gross-formatted="<?php echo money($point['gross']); ?>"
+                         data-net-formatted="<?php echo money($point['net']); ?>">
+                        <div class="bars-side-by-side-wrapper">
+                            <div class="single-payroll-bar gross-payroll-bar<?php echo $is_zero_gross ? ' is-zero-value' : ''; ?>"
+                                 style="height:<?php echo $gross_percentage_height; ?>%;"></div>
+                            <div class="single-payroll-bar net-payroll-bar<?php echo $is_zero_net ? ' is-zero-value' : ''; ?>"
+                                 style="height:<?php echo $net_percentage_height; ?>%;"></div>
+                        </div>
+                        <span class="chart-month-bottom-label<?php echo $is_active_month ? ' is-current-selected-month' : ''; ?>">
+                            <?php echo e($point['label']); ?>
+                        </span>
+                    </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+
+            <div class="payroll-chart-floating-tooltip" role="tooltip" aria-hidden="true">
+                <div class="tooltip-month-title">Month Year</div>
+                <div class="tooltip-data-row">
+                    <span class="tooltip-label-wrapper"><i class="tooltip-color-indicator gross"></i> Gross Payroll:</span>
+                    <strong class="tooltip-amount-value tooltip-gross-value">₱ 0.00</strong>
+                </div>
+                <div class="tooltip-data-row">
+                    <span class="tooltip-label-wrapper"><i class="tooltip-color-indicator net"></i> Net Payroll:</span>
+                    <strong class="tooltip-amount-value tooltip-net-value">₱ 0.00</strong>
+                </div>
+            </div>
+        </div>
     </section>
 
     <section class="report-layout">

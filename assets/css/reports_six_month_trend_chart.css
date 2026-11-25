@@ -1,0 +1,374 @@
+.report-trend-card {
+  margin-bottom: 20px;
+  background: var(--card, #ffffff);
+  border: 1px solid var(--line, #dfe8ea);
+  border-radius: 14px;
+  padding: 22px 24px 20px;
+  position: relative;
+  overflow: visible;
+}
+
+.trend-card-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 22px;
+}
+
+.trend-card-heading-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--text, #17323b);
+  letter-spacing: -0.2px;
+}
+
+.trend-card-heading-subtitle {
+  margin: 4px 0 0;
+  font-size: 11px;
+  color: var(--muted, #6b7d84);
+}
+
+.trend-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text, #17323b);
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  display: inline-block;
+}
+
+.legend-swatch.gross-payroll {
+  background: #0f9f9a;
+}
+
+.legend-swatch.net-payroll {
+  background: #087f7b;
+}
+
+.payroll-analytics-chart-container {
+  display: flex;
+  gap: 14px;
+  height: 220px;
+  position: relative;
+  user-select: none;
+}
+
+.chart-vertical-axis {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  width: 62px;
+  flex-shrink: 0;
+  text-align: right;
+  padding-bottom: 26px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--muted, #6b7d84);
+  font-variant-numeric: tabular-nums;
+}
+
+.chart-vertical-axis span {
+  line-height: 1;
+}
+
+.chart-main-plot-area {
+  position: relative;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chart-horizontal-gridlines {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  right: 0;
+  bottom: 26px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  pointer-events: none;
+}
+
+.horizontal-gridline {
+  border-bottom: 1px solid rgba(223, 232, 234, 0.7);
+  width: 100%;
+}
+
+.horizontal-gridline.baseline {
+  border-bottom: 1px solid var(--line, #dfe8ea);
+}
+
+.chart-months-bar-groups {
+  position: absolute;
+  top: 5px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  justify-content: space-around;
+  gap: 8px;
+}
+
+.month-bar-group {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  cursor: pointer;
+  outline: none;
+  transition: opacity 0.2s ease;
+}
+
+.chart-months-bar-groups.has-hovered-item .month-bar-group {
+  opacity: 0.6;
+}
+
+.chart-months-bar-groups.has-hovered-item .month-bar-group.is-hovered {
+  opacity: 1;
+}
+
+.bars-side-by-side-wrapper {
+  flex: 1;
+  width: 100%;
+  max-width: 68px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  padding-bottom: 2px;
+}
+
+.single-payroll-bar {
+  flex: 1;
+  max-width: 16px;
+  min-width: 10px;
+  border-radius: 4px 4px 0 0;
+  transform-origin: bottom;
+  transform: scaleY(0);
+  transition: transform 800ms cubic-bezier(0.22, 1, 0.36, 1), filter 0.18s ease;
+}
+
+.single-payroll-bar.gross-payroll-bar {
+  background: #0f9f9a;
+}
+
+.single-payroll-bar.net-payroll-bar {
+  background: #087f7b;
+}
+
+.month-bar-group.is-hovered .single-payroll-bar {
+  filter: brightness(1.1);
+}
+
+.month-bar-group.has-zero-payroll .bars-side-by-side-wrapper {
+  position: relative;
+}
+
+.single-payroll-bar.is-zero-value {
+  height: 3px !important;
+  border-radius: 2px;
+  opacity: 0.35;
+}
+
+.chart-month-bottom-label {
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--muted, #6b7d84);
+  margin-top: 4px;
+}
+
+.chart-month-bottom-label.is-current-selected-month {
+  color: #087f7b;
+  font-weight: 700;
+  background: rgba(15, 159, 154, 0.12);
+  border-radius: 5px;
+  padding: 0 6px;
+}
+
+.report-trend-card.is-animated .single-payroll-bar {
+  transform: scaleY(1);
+}
+
+.report-trend-card.is-animated .chart-horizontal-gridlines,
+.report-trend-card.is-animated .chart-month-bottom-label {
+  animation: trend-fade-in 600ms ease forwards;
+}
+
+@keyframes trend-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.payroll-chart-floating-tooltip {
+  position: absolute;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(200, 215, 218, 0.9);
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 10px 24px -4px rgba(15, 48, 57, 0.16), 0 4px 8px -2px rgba(15, 48, 57, 0.08);
+  pointer-events: none;
+  font-size: 11px;
+  color: #17323b;
+  min-width: 175px;
+  transform: translate(-50%, -100%);
+  margin-top: -12px;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.payroll-chart-floating-tooltip.is-visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-month-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: #17323b;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(223, 232, 234, 0.8);
+}
+
+.tooltip-data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.tooltip-data-row:last-child {
+  margin-bottom: 0;
+}
+
+.tooltip-label-wrapper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #6b7d84;
+}
+
+.tooltip-color-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  display: inline-block;
+}
+
+.tooltip-color-indicator.gross {
+  background: #0f9f9a;
+}
+
+.tooltip-color-indicator.net {
+  background: #087f7b;
+}
+
+.tooltip-amount-value {
+  font-weight: 700;
+  color: #17323b;
+  font-variant-numeric: tabular-nums;
+}
+
+body.dark-mode .report-trend-card {
+  background: #172328;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .trend-card-heading-title,
+body.dark-mode .trend-chart-legend {
+  color: #edf5f6;
+}
+
+body.dark-mode .horizontal-gridline {
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .horizontal-gridline.baseline {
+  border-bottom-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .payroll-chart-floating-tooltip {
+  background: rgba(23, 35, 40, 0.98);
+  border-color: rgba(255, 255, 255, 0.16);
+  color: #edf5f6;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45);
+}
+
+body.dark-mode .tooltip-month-title,
+body.dark-mode .tooltip-amount-value {
+  color: #edf5f6;
+}
+
+body.dark-mode .tooltip-month-title {
+  border-bottom-color: rgba(255, 255, 255, 0.1);
+}
+
+body.dark-mode .tooltip-label-wrapper {
+  color: #9cb2b7;
+}
+
+@media (max-width: 640px) {
+  .trend-card-top-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .chart-vertical-axis {
+    width: 48px;
+    font-size: 9px;
+  }
+  .bars-side-by-side-wrapper {
+    gap: 3px;
+  }
+  .single-payroll-bar {
+    max-width: 12px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .single-payroll-bar {
+    transition: none !important;
+    transform: scaleY(1) !important;
+  }
+  .chart-horizontal-gridlines,
+  .chart-month-bottom-label {
+    animation: none !important;
+    opacity: 1 !important;
+  }
+}
+
+@media print {
+  .report-trend-card {
+    display: none !important;
+  }
+}

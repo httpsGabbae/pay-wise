@@ -13,6 +13,24 @@
 }
 * {
   box-sizing: border-box;
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+*::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  display: none !important;
+  background: transparent !important;
+}
+html, body {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  display: none !important;
+  background: transparent !important;
 }
 body {
   margin: 0;
@@ -3600,5 +3618,71 @@ body:not(.sidebar-collapsed) .employee-sidebar .brand-text {
   .employee-sidebar.mobile-collapsed {
     width: 74px !important;
     max-width: 74px !important;
+  }
+}
+
+/* ==========================================================================
+   Universal Pagination Toolbar & Form Mobile Responsiveness
+   ========================================================================== */
+.pagination-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 540px) {
+  .pagination-toolbar {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 10px !important;
+    padding: 12px 14px !important;
+  }
+  .pagination-toolbar > div {
+    width: 100% !important;
+    display: flex !important;
+    justify-content: center !important;
+    flex-wrap: wrap !important;
+  }
+}
+
+.repayment-form-flex {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.loan-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .repayment-form-flex {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+  .repayment-form-field {
+    width: 100% !important;
+    min-width: 0 !important;
+    flex: none !important;
+  }
+  .repayment-form-actions {
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+    margin-top: 4px;
+  }
+  .repayment-form-actions .btn {
+    flex: 1 !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+  .loan-form-grid {
+    grid-template-columns: 1fr !important;
   }
 }

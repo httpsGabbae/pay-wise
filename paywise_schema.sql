@@ -304,6 +304,7 @@ CREATE TABLE other_income (
     period_id INT DEFAULT NULL,
     income_name VARCHAR(100) NOT NULL,
     amount DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+    is_taxable TINYINT(1) NOT NULL DEFAULT 1,
     pay_date DATE DEFAULT NULL,
     notes VARCHAR(255) DEFAULT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,

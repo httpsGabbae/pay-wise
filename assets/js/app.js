@@ -132,7 +132,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     adminButton?.addEventListener('click', function (event) {
         event.stopPropagation();
-        const open = adminDropdown.classList.toggle('show');
+        const open = adminDropdown ? adminDropdown.classList.toggle('show') : false;
         adminButton.setAttribute('aria-expanded', open ? 'true' : 'false');
     });
 
@@ -212,16 +212,20 @@ document.addEventListener('DOMContentLoaded', function () {
         const confirmPassword = passwordForm.elements.confirm_password.value;
         if (newPassword !== confirmPassword) {
             event.preventDefault();
-            passwordMessage.textContent = 'The new passwords do not match.';
-            passwordMessage.className = 'settings-message error';
-            passwordMessage.hidden = false;
+            if (passwordMessage) {
+                passwordMessage.textContent = 'The new passwords do not match.';
+                passwordMessage.className = 'settings-message error';
+                passwordMessage.hidden = false;
+            }
             return;
         }
         if (newPassword.length < 8) {
             event.preventDefault();
-            passwordMessage.textContent = 'The new password must be at least 8 characters.';
-            passwordMessage.className = 'settings-message error';
-            passwordMessage.hidden = false;
+            if (passwordMessage) {
+                passwordMessage.textContent = 'The new password must be at least 8 characters.';
+                passwordMessage.className = 'settings-message error';
+                passwordMessage.hidden = false;
+            }
         }
     });
 
@@ -233,9 +237,11 @@ document.addEventListener('DOMContentLoaded', function () {
     if (params.get('password_error')) {
         settingsOverlay?.classList.add('show');
         settingsOverlay?.setAttribute('aria-hidden', 'false');
-        passwordMessage.textContent = params.get('password_error');
-        passwordMessage.className = 'settings-message error';
-        passwordMessage.hidden = false;
+        if (passwordMessage) {
+            passwordMessage.textContent = params.get('password_error');
+            passwordMessage.className = 'settings-message error';
+            passwordMessage.hidden = false;
+        }
         history.replaceState({}, '', window.location.pathname);
     }
 

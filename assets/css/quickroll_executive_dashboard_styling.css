@@ -1,0 +1,738 @@
+/* ==========================================================================
+   Executive Dashboard Styling — Clean Neutral Palette
+   Pure white cards, subtle hairline borders, interactive charts, and asterisk masking.
+   ========================================================================== */
+
+:root {
+  --dash-bg: #f9fafb;
+  --dash-card: #ffffff;
+  --dash-border: #e5e7eb;
+  --dash-text-main: #111827;
+  --dash-text-muted: #6b7280;
+  --dash-text-subtle: #9ca3af;
+  --dash-brand: #17323b;
+  --dash-brand-accent: #0f766e;
+  --dash-brand-accent-hover: #0d9488;
+}
+
+body {
+  background-color: var(--dash-bg) !important;
+  color: var(--dash-text-main);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+*::-webkit-scrollbar {
+  width: 0px !important;
+  height: 0px !important;
+  display: none !important;
+}
+
+* {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Header greeting section */
+.quickroll-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 22px;
+  padding-top: 4px;
+}
+
+.quickroll-welcome-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.3px;
+  color: var(--dash-text-main);
+}
+
+.quickroll-welcome-date {
+  margin: 4px 0 0 0;
+  font-size: 13px;
+  color: var(--dash-text-muted);
+}
+
+.quickroll-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.quickroll-privacy-toggle-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  color: var(--dash-text-main);
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.quickroll-privacy-toggle-button:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+.quickroll-privacy-toggle-button.is-active-privacy {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+
+.quickroll-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--dash-brand);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.quickroll-action-button:hover {
+  background: #0e2127;
+}
+
+/* Dashboard sub-bar with title and filters */
+.quickroll-sub-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.quickroll-sub-title {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+  color: var(--dash-text-main);
+}
+
+.quickroll-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quickroll-select-filter {
+  appearance: none;
+  -webkit-appearance: none;
+  background: #ffffff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E") no-repeat right 12px center;
+  border: 1px solid var(--dash-border);
+  border-radius: 8px;
+  padding: 7px 32px 7px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--dash-text-main);
+  cursor: pointer;
+  outline: none;
+}
+
+.quickroll-select-filter:hover {
+  border-color: #d1d5db;
+}
+
+/* 4 Top KPI Metric Cards — Clean white cards, NO candy colors, NO icons */
+.quickroll-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 1024px) {
+  .quickroll-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .quickroll-kpi-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quickroll-kpi-card {
+  background: #ffffff;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.quickroll-kpi-card:hover {
+  border-color: #d1d5db;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.04);
+}
+
+.quickroll-kpi-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--dash-text-muted);
+  margin-bottom: 8px;
+}
+
+.quickroll-kpi-number {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--dash-text-main);
+  letter-spacing: -0.4px;
+}
+
+.quickroll-kpi-subtext {
+  font-size: 12px;
+  color: var(--dash-text-muted);
+  margin-top: 8px;
+}
+
+/* Middle Section: Payroll History & Requests Charts */
+.quickroll-middle-grid {
+  display: grid;
+  grid-template-columns: 1.7fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+@media (max-width: 980px) {
+  .quickroll-middle-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.quickroll-white-card {
+  background: #ffffff;
+  border: 1px solid var(--dash-border);
+  border-radius: 12px;
+  padding: 20px 22px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+  position: relative;
+}
+
+.quickroll-card-head {
+  margin-bottom: 16px;
+}
+
+.quickroll-card-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--dash-text-main);
+}
+
+.quickroll-card-subtitle {
+  margin: 3px 0 0 0;
+  font-size: 12px;
+  color: var(--dash-text-muted);
+}
+
+/* Payroll History Layout */
+.quickroll-payroll-history-body {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+}
+
+.quickroll-payroll-chart-container {
+  flex: 1;
+  min-height: 190px;
+  position: relative;
+}
+
+.quickroll-payroll-summary-panel {
+  width: 165px;
+  flex-shrink: 0;
+  border-left: 2px solid var(--dash-brand-accent);
+  padding-left: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.quickroll-summary-stat-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.quickroll-summary-stat-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dash-text-main);
+  letter-spacing: -0.3px;
+}
+
+.quickroll-summary-stat-label {
+  font-size: 12px;
+  color: var(--dash-text-muted);
+  margin-top: 2px;
+}
+
+.quickroll-report-outline-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 7px 12px;
+  background: #ffffff;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dash-text-main);
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 4px;
+}
+
+.quickroll-report-outline-btn:hover {
+  background: #f3f4f6;
+  border-color: #d1d5db;
+}
+
+/* SVG Bar Chart with Hover States */
+.quickroll-bars-svg {
+  width: 100%;
+  height: 185px;
+  overflow: visible;
+}
+
+.quickroll-bar-interactive-group {
+  cursor: pointer;
+}
+
+.quickroll-bar-interactive-group:hover .quickroll-bar-actual {
+  fill: var(--dash-brand-accent-hover);
+}
+
+.quickroll-bar-interactive-group:hover .quickroll-bar-requested {
+  fill: #cbd5e1;
+}
+
+.quickroll-bar-requested {
+  fill: #e5e7eb;
+  transition: fill 0.15s ease;
+}
+
+.quickroll-bar-actual {
+  fill: var(--dash-brand-accent);
+  transition: fill 0.15s ease;
+}
+
+.quickroll-axis-text {
+  font-size: 11px;
+  fill: #9ca3af;
+  font-family: inherit;
+}
+
+.quickroll-grid-line {
+  stroke: #f3f4f6;
+  stroke-dasharray: 4, 4;
+}
+
+/* Requests Smooth Curve Chart */
+.quickroll-requests-chart-wrap {
+  width: 100%;
+  height: 190px;
+  position: relative;
+}
+
+.quickroll-requests-svg {
+  width: 100%;
+  height: 185px;
+  overflow: visible;
+}
+
+.quickroll-request-point-dot {
+  cursor: pointer;
+  transition: r 0.15s ease, fill 0.15s ease;
+}
+
+.quickroll-request-point-dot:hover {
+  r: 6.5;
+  fill: #111827 !important;
+}
+
+/* Shared Interactive Chart Floating Tooltip */
+.quickroll-chart-tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: #111827;
+  color: #ffffff;
+  padding: 7px 11px;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 100;
+  display: none;
+  white-space: nowrap;
+}
+
+.quickroll-chart-tooltip strong {
+  display: block;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+/* Bottom Section: Recent Employees Table */
+.quickroll-table-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.quickroll-table-left-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quickroll-badge-counter {
+  background: #f3f4f6;
+  color: #4b5563;
+  border-radius: 14px;
+  padding: 2px 9px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.quickroll-data-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.quickroll-data-table {
+  width: 100%;
+  min-width: 680px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 13px;
+}
+
+.quickroll-data-table th {
+  padding: 10px 14px;
+  color: var(--dash-text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  border-bottom: 1px solid var(--dash-border);
+  white-space: nowrap;
+}
+
+.quickroll-data-table td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+}
+
+.quickroll-data-table tr:hover td {
+  background: #fafafa;
+}
+
+.quickroll-data-table tr:last-child td {
+  border-bottom: none;
+}
+
+.quickroll-employee-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quickroll-avatar-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  object-fit: cover;
+  background: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 13px;
+  color: #374151;
+  flex-shrink: 0;
+}
+
+.quickroll-employee-info {
+  display: flex;
+  flex-direction: column;
+}
+
+.quickroll-employee-name {
+  font-weight: 600;
+  color: var(--dash-text-main);
+}
+
+.quickroll-employee-sub {
+  font-size: 11px;
+  color: var(--dash-text-muted);
+}
+
+.quickroll-cell-primary-text {
+  font-weight: 600;
+  color: var(--dash-text-main);
+}
+
+.quickroll-cell-secondary-text {
+  font-size: 11px;
+  color: var(--dash-text-muted);
+  margin-top: 1px;
+}
+
+.quickroll-status-pill {
+  display: inline-block;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.quickroll-status-pending {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.quickroll-status-approved,
+.quickroll-status-paid {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.quickroll-status-draft {
+  background: #f3f4f6;
+  color: #4b5563;
+}
+
+.quickroll-actions-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: #ffffff;
+  border: 1px solid var(--dash-border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dash-text-muted);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.quickroll-actions-btn:hover {
+  background: #f3f4f6;
+  color: var(--dash-text-main);
+}
+
+/* Asterisk mask formatting */
+.is-masked {
+  font-family: monospace;
+  letter-spacing: 1.5px;
+  font-weight: 700;
+  color: #6b7280;
+}
+
+/* ==========================================================================
+   Comprehensive Mobile & Tablet Responsive Optimizations
+   ========================================================================== */
+
+.quickroll-executive-content {
+  padding: 24px 28px;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 820px) {
+  .quickroll-executive-content {
+    padding: 16px 12px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .quickroll-executive-content {
+    padding: 12px 8px !important;
+  }
+}
+
+/* Header greeting responsiveness */
+@media (max-width: 700px) {
+  .quickroll-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .quickroll-welcome-title {
+    font-size: 20px;
+  }
+  .quickroll-header-actions {
+    width: 100%;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .quickroll-privacy-toggle-button,
+  .quickroll-action-button {
+    flex: 1;
+    min-width: 130px;
+    justify-content: center;
+    text-align: center;
+    font-size: 12px;
+    padding: 8px 10px;
+  }
+}
+
+/* Sub-bar & filters responsiveness */
+@media (max-width: 600px) {
+  .quickroll-sub-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .quickroll-filter-group {
+    width: 100%;
+    display: flex;
+    gap: 8px;
+  }
+  .quickroll-select-filter {
+    flex: 1;
+    min-width: 0;
+    width: 100%;
+    font-size: 12px;
+    padding: 6px 28px 6px 10px;
+  }
+}
+
+/* Middle Section: Chart and Side Panel Stacking on Mobile */
+@media (max-width: 720px) {
+  .quickroll-payroll-history-body {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+  .quickroll-payroll-chart-container {
+    min-height: 160px;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .quickroll-payroll-summary-panel {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--dash-border);
+    padding-left: 0;
+    padding-top: 14px;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .quickroll-summary-stat-block {
+    flex: 1;
+    min-width: 100px;
+  }
+  .quickroll-summary-stat-amount {
+    font-size: 16px;
+  }
+  .quickroll-report-outline-btn {
+    width: 100%;
+    text-align: center;
+    padding: 8px 12px;
+  }
+  .quickroll-requests-chart-wrap {
+    min-height: 160px;
+  }
+}
+
+/* Card and Table header responsiveness on small phones */
+@media (max-width: 600px) {
+  .quickroll-white-card {
+    padding: 14px 12px;
+    border-radius: 10px;
+  }
+  .quickroll-card-title {
+    font-size: 15px;
+  }
+  .quickroll-table-header-row {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+  .quickroll-table-header-row > div:last-child {
+    width: 100%;
+  }
+  .quickroll-table-header-row select {
+    width: 100%;
+  }
+}
+
+/* Pagination container responsiveness on all pages */
+.quickroll-pagination-wrap,
+.pagination-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+@media (max-width: 540px) {
+  .quickroll-pagination-wrap,
+  .pagination-toolbar {
+    flex-direction: column !important;
+    align-items: center !important;
+    text-align: center !important;
+    gap: 10px !important;
+  }
+  .quickroll-pagination-wrap > div,
+  .pagination-toolbar > div {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .quickroll-payroll-chart-container {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .quickroll-bars-svg {
+    min-width: 380px;
+  }
+  .quickroll-requests-chart-wrap {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .quickroll-requests-svg {
+    min-width: 280px;
+  }
+}

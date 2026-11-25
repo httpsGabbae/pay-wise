@@ -7,6 +7,29 @@ $message = '';
 $error = '';
 $editLoan = null;
 
+function recalculate_loan_balance_and_status(mysqli $conn, int $loanId): void
+{
+    $stmt = $conn->prepare('SELECT principal FROM employee_loans WHERE loan_id = ? LIMIT 1');
+    $stmt->bind_param('i', $loanId);
+    $stmt->execute();
+    $loanRow = $stmt->get_result()->fetch_assoc();
+    if (!$loanRow) return;
+
+    $principal = (float)$loanRow['principal'];
+
+    $sumStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS total_repaid FROM loan_repayments WHERE loan_id = ?');
+    $sumStmt->bind_param('i', $loanId);
+    $sumStmt->execute();
+    $totalRepaid = (float)$sumStmt->get_result()->fetch_assoc()['total_repaid'];
+
+    $remainingBalance = max(0, round($principal - $totalRepaid, 2));
+    $newStatus = ($remainingBalance <= 0) ? 'Paid' : 'Active';
+
+    $updStmt = $conn->prepare('UPDATE employee_loans SET remaining_balance = ?, status = ? WHERE loan_id = ?');
+    $updStmt->bind_param('dsi', $remainingBalance, $newStatus, $loanId);
+    $updStmt->execute();
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
     $action = $_POST['action'] ?? '';
@@ -35,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare('UPDATE employee_loans SET employee_id=?, loan_type_id=?, loan_date=?, principal=?, installment=?, term_periods=?, repayment_start=?, remarks=? WHERE loan_id=? AND status="Active"');
                 $stmt->bind_param('iisddissi', $employeeId, $loanTypeId, $loanDate, $principal, $installment, $termPeriods, $repaymentStart, $remarks, $loanId);
                 if ($stmt->execute()) {
+                    recalculate_loan_balance_and_status($conn, $loanId);
                     header('Location: loans.php?saved=1');
                     exit;
                 }
@@ -62,14 +86,79 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $error = 'Unable to cancel loan.';
         }
+    } elseif ($action === 'record_repayment') {
+        $loanId = (int)($_POST['loan_id'] ?? 0);
+        $amount = round((float)($_POST['amount'] ?? 0), 2);
+        $repaymentDate = trim($_POST['repayment_date'] ?? date('Y-m-d'));
+        $notes = trim($_POST['notes'] ?? 'Direct payment');
+
+        if ($loanId <= 0 || $amount <= 0) {
+            $error = 'Please enter a valid loan and repayment amount greater than zero.';
+        } else {
+            $lStmt = $conn->prepare('SELECT employee_id FROM employee_loans WHERE loan_id=? LIMIT 1');
+            $lStmt->bind_param('i', $loanId);
+            $lStmt->execute();
+            $lRow = $lStmt->get_result()->fetch_assoc();
+            if ($lRow) {
+                $empId = (int)$lRow['employee_id'];
+                $ins = $conn->prepare('INSERT INTO loan_repayments (loan_id, payroll_id, employee_id, amount, repayment_date, notes) VALUES (?, NULL, ?, ?, ?, ?)');
+                $ins->bind_param('iidss', $loanId, $empId, $amount, $repaymentDate, $notes);
+                if ($ins->execute()) {
+                    recalculate_loan_balance_and_status($conn, $loanId);
+                    header('Location: loans.php?view_repayments=' . $loanId . '&repaid=1');
+                    exit;
+                }
+                $error = 'Failed to record repayment.';
+            } else {
+                $error = 'Loan record not found.';
+            }
+        }
+    } elseif ($action === 'update_repayment') {
+        $repaymentId = (int)($_POST['repayment_id'] ?? 0);
+        $loanId = (int)($_POST['loan_id'] ?? 0);
+        $amount = round((float)($_POST['amount'] ?? 0), 2);
+        $repaymentDate = trim($_POST['repayment_date'] ?? date('Y-m-d'));
+        $notes = trim($_POST['notes'] ?? '');
+
+        if ($repaymentId <= 0 || $loanId <= 0 || $amount <= 0) {
+            $error = 'Please enter a valid repayment amount greater than zero.';
+        } else {
+            $upd = $conn->prepare('UPDATE loan_repayments SET amount=?, repayment_date=?, notes=? WHERE repayment_id=?');
+            $upd->bind_param('dssi', $amount, $repaymentDate, $notes, $repaymentId);
+            if ($upd->execute()) {
+                recalculate_loan_balance_and_status($conn, $loanId);
+                header('Location: loans.php?view_repayments=' . $loanId . '&repaid_updated=1');
+                exit;
+            }
+            $error = 'Failed to update repayment.';
+        }
+    } elseif ($action === 'delete_repayment') {
+        $repaymentId = (int)($_POST['repayment_id'] ?? 0);
+        $loanId = (int)($_POST['loan_id'] ?? 0);
+
+        if ($repaymentId > 0 && $loanId > 0) {
+            $del = $conn->prepare('DELETE FROM loan_repayments WHERE repayment_id=?');
+            $del->bind_param('i', $repaymentId);
+            if ($del->execute()) {
+                recalculate_loan_balance_and_status($conn, $loanId);
+                header('Location: loans.php?view_repayments=' . $loanId . '&repaid_deleted=1');
+                exit;
+            }
+            $error = 'Failed to delete repayment.';
+        }
     }
 }
 
 if (isset($_GET['saved'])) $message = 'Loan record saved successfully.';
 if (isset($_GET['cancelled'])) $message = 'Loan marked as cancelled.';
+if (isset($_GET['repaid'])) $message = 'Repayment successfully recorded and balance updated.';
+if (isset($_GET['repaid_updated'])) $message = 'Repayment record updated and balance recalculated.';
+if (isset($_GET['repaid_deleted'])) $message = 'Repayment record removed and balance recalculated.';
 
 $filterStatus = $_GET['status'] ?? 'Active';
 $filterEmployee = (int)($_GET['employee_id'] ?? 0);
+$viewLoanId = (int)($_GET['view_repayments'] ?? 0);
+$editRepaymentId = (int)($_GET['edit_repayment'] ?? 0);
 
 // Load Loan Types for form
 $loanTypes = [];
@@ -81,7 +170,7 @@ $employees = [];
 $empRes = $conn->query('SELECT employee_id, employee_no, first_name, last_name, department, basic_salary FROM employees ORDER BY last_name ASC, first_name ASC');
 if ($empRes) while ($emp = $empRes->fetch_assoc()) $employees[] = $emp;
 
-// Query loans with details
+// Query loans with details and pagination
 $where = [];
 $params = [];
 $types = '';
@@ -99,6 +188,24 @@ if ($filterEmployee > 0) {
 }
 
 $whereSql = $where ? 'WHERE ' . implode(' AND ', $where) : '';
+
+// 1. Pagination Calculation (Max 10 records per page)
+$countSql = "SELECT COUNT(*) AS total_count FROM employee_loans el $whereSql";
+if ($types !== '') {
+    $cStmt = $conn->prepare($countSql);
+    $cStmt->bind_param($types, ...$params);
+    $cStmt->execute();
+    $totalLoansCount = (int)$cStmt->get_result()->fetch_assoc()['total_count'];
+} else {
+    $totalLoansCount = (int)$conn->query($countSql)->fetch_assoc()['total_count'];
+}
+
+$recordsPerPage = 10;
+$currentPage = max(1, (int)($_GET['page'] ?? 1));
+$totalPages = max(1, (int)ceil($totalLoansCount / $recordsPerPage));
+if ($currentPage > $totalPages) $currentPage = $totalPages;
+$offset = ($currentPage - 1) * $recordsPerPage;
+
 $sql = "SELECT el.*, e.employee_no, e.first_name, e.last_name, e.department, lt.loan_type_name,
         (SELECT COALESCE(SUM(lr.amount), 0) FROM loan_repayments lr WHERE lr.loan_id = el.loan_id) AS total_repaid,
         (SELECT COUNT(*) FROM loan_repayments lr WHERE lr.loan_id = el.loan_id) AS repayments_count
@@ -106,7 +213,8 @@ $sql = "SELECT el.*, e.employee_no, e.first_name, e.last_name, e.department, lt.
         JOIN employees e ON e.employee_id = el.employee_id
         JOIN loan_types lt ON lt.loan_type_id = el.loan_type_id
         $whereSql
-        ORDER BY el.loan_id DESC";
+        ORDER BY el.loan_id DESC
+        LIMIT $recordsPerPage OFFSET $offset";
 
 if ($types !== '') {
     $stmt = $conn->prepare($sql);
@@ -120,15 +228,33 @@ if ($types !== '') {
 $loans = [];
 if ($loansResult) while ($l = $loansResult->fetch_assoc()) $loans[] = $l;
 
-// Summary stats
-$totalPrincipal = 0;
-$totalBalance = 0;
-$activeCount = 0;
-foreach ($loans as $l) {
-    if ($l['status'] === 'Active') {
-        $totalPrincipal += (float)$l['principal'];
-        $totalBalance += (float)$l['remaining_balance'];
-        $activeCount++;
+// Summary stats across active loans
+$activeCount = (int)$conn->query("SELECT COUNT(*) AS c FROM employee_loans WHERE status='Active'")->fetch_assoc()['c'];
+$totalPrincipal = (float)$conn->query("SELECT COALESCE(SUM(principal),0) AS p FROM employee_loans WHERE status='Active'")->fetch_assoc()['p'];
+$totalBalance = (float)$conn->query("SELECT COALESCE(SUM(remaining_balance),0) AS b FROM employee_loans WHERE status='Active'")->fetch_assoc()['b'];
+
+// If a loan's repayments are being viewed
+$selectedLoan = null;
+$repaymentsList = [];
+$editingRepayment = null;
+
+if ($viewLoanId > 0) {
+    $selStmt = $conn->prepare('SELECT el.*, e.employee_no, e.first_name, e.last_name, e.department, lt.loan_type_name FROM employee_loans el JOIN employees e ON e.employee_id=el.employee_id JOIN loan_types lt ON lt.loan_type_id=el.loan_type_id WHERE el.loan_id=? LIMIT 1');
+    $selStmt->bind_param('i', $viewLoanId);
+    $selStmt->execute();
+    $selectedLoan = $selStmt->get_result()->fetch_assoc();
+
+    if ($selectedLoan) {
+        $repStmt = $conn->prepare('SELECT lr.*, pp.period_code, p.period_start, p.period_end FROM loan_repayments lr LEFT JOIN payroll_records p ON p.payroll_id=lr.payroll_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id WHERE lr.loan_id=? ORDER BY lr.repayment_date DESC, lr.repayment_id DESC');
+        $repStmt->bind_param('i', $viewLoanId);
+        $repStmt->execute();
+        $repRes = $repStmt->get_result();
+        while ($r = $repRes->fetch_assoc()) {
+            $repaymentsList[] = $r;
+            if ($editRepaymentId > 0 && (int)$r['repayment_id'] === $editRepaymentId) {
+                $editingRepayment = $r;
+            }
+        }
     }
 }
 
@@ -154,7 +280,7 @@ $showAdd = isset($_GET['new']) && $_GET['new'] === '1';
         <div class="content">
             <div class="page-heading">
                 <div>
-                    <h1>Employee Loans <span class="count-pill"><?php echo count($loans); ?></span></h1>
+                    <h1>Employee Loans <span class="count-pill"><?php echo $totalLoansCount; ?></span></h1>
                     <p>Active loan releases, installments, and payroll amortization.</p>
                 </div>
                 <div class="heading-actions">
@@ -184,6 +310,109 @@ $showAdd = isset($_GET['new']) && $_GET['new'] === '1';
                 </div>
             </div>
 
+            <!-- Repayments Manager Section (When a loan is selected) -->
+            <?php if ($selectedLoan): ?>
+            <section class="card" id="repayment-section" style="margin-bottom: 20px; border: 2px solid var(--accent, #0f9f9a);">
+                <div class="card-head" style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; background: #f0fdfa;">
+                    <div>
+                        <h2 style="color: #0f766e; margin:0 0 4px 0;">Repayments for Loan #<?php echo (int)$selectedLoan['loan_id']; ?> — <?php echo e($selectedLoan['last_name'] . ', ' . $selectedLoan['first_name']); ?></h2>
+                        <p style="margin:0; font-size:12px; color: #115e59;">
+                            Principal: <?php echo money($selectedLoan['principal']); ?> · Remaining Balance: <strong><?php echo money($selectedLoan['remaining_balance']); ?></strong> · Status: <span class="badge badge-info"><?php echo e($selectedLoan['status']); ?></span>
+                        </p>
+                    </div>
+                    <a href="loans.php" class="btn btn-small btn-secondary"><?php echo ui_icon('close'); ?> Close Repayment View</a>
+                </div>
+
+                <div style="padding: 16px 20px;">
+                    <!-- Record or Edit Repayment Form -->
+                    <div style="background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px 16px; margin-bottom: 16px;">
+                        <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 700; color: #1e293b;">
+                            <?php echo $editingRepayment ? 'Edit Repayment #' . (int)$editingRepayment['repayment_id'] : 'Record Direct / Cash Payment'; ?>
+                        </h3>
+                        <form method="post" class="repayment-form-flex">
+                            <?php echo csrf_field(); ?>
+                            <input type="hidden" name="action" value="<?php echo $editingRepayment ? 'update_repayment' : 'record_repayment'; ?>">
+                            <input type="hidden" name="loan_id" value="<?php echo (int)$selectedLoan['loan_id']; ?>">
+                            <?php if ($editingRepayment): ?>
+                                <input type="hidden" name="repayment_id" value="<?php echo (int)$editingRepayment['repayment_id']; ?>">
+                            <?php endif; ?>
+
+                            <div class="repayment-form-field" style="flex:1; min-width:140px;">
+                                <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Amount (₱) <span class="required">*</span></label>
+                                <input type="number" step="0.01" min="0.01" name="amount" value="<?php echo $editingRepayment ? (float)$editingRepayment['amount'] : (float)$selectedLoan['installment']; ?>" required style="width:100%; padding:6px 10px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+
+                            <div class="repayment-form-field" style="flex:1; min-width:140px;">
+                                <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Payment Date <span class="required">*</span></label>
+                                <input type="date" name="repayment_date" value="<?php echo $editingRepayment ? $editingRepayment['repayment_date'] : date('Y-m-d'); ?>" required style="width:100%; padding:6px 10px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+
+                            <div class="repayment-form-field" style="flex:2; min-width:200px;">
+                                <label style="display:block; font-size:12px; font-weight:600; margin-bottom:4px;">Receipt / Notes</label>
+                                <input type="text" name="notes" placeholder="e.g. Cashier OR #12345 or Advance payment" value="<?php echo e($editingRepayment ? $editingRepayment['notes'] : ''); ?>" style="width:100%; padding:6px 10px; font-size:13px; border:1px solid #cbd5e1; border-radius:6px;">
+                            </div>
+
+                            <div class="repayment-form-actions">
+                                <button type="submit" class="btn btn-primary" style="padding:7px 16px; font-size:13px;">
+                                    <?php echo $editingRepayment ? 'Save Changes' : '+ Post Payment'; ?>
+                                </button>
+                                <?php if ($editingRepayment): ?>
+                                    <a href="loans.php?view_repayments=<?php echo (int)$selectedLoan['loan_id']; ?>" class="btn btn-secondary" style="padding:7px 12px; font-size:13px;">Cancel Edit</a>
+                                <?php endif; ?>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Repayments History Table -->
+                    <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 700; color: #1e293b;">Posted Repayment History</h3>
+                    <div class="table-wrap">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Ref #</th>
+                                    <th>Date</th>
+                                    <th>Method / Period</th>
+                                    <th style="text-align:right;">Amount</th>
+                                    <th>Notes</th>
+                                    <th style="text-align:right;">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if (empty($repaymentsList)): ?>
+                                    <tr><td colspan="6" class="empty">No payments recorded for this loan yet.</td></tr>
+                                <?php else: foreach ($repaymentsList as $rep): ?>
+                                    <tr>
+                                        <td>#<?php echo (int)$rep['repayment_id']; ?></td>
+                                        <td><?php echo date('M d, Y', strtotime($rep['repayment_date'])); ?></td>
+                                        <td>
+                                            <?php if (!empty($rep['period_code'])): ?>
+                                                <span class="badge" style="background:#f1f5f9; color:#475569;">Payroll: <?php echo e($rep['period_code']); ?></span>
+                                            <?php else: ?>
+                                                <span class="badge" style="background:#e0f2fe; color:#0369a1;">Direct Payment</span>
+                                            <?php endif; ?>
+                                        </td>
+                                        <td style="text-align:right; font-weight:700; color:#059669;"><?php echo money($rep['amount']); ?></td>
+                                        <td><span class="mini"><?php echo e($rep['notes'] ?: 'No notes'); ?></span></td>
+                                        <td style="text-align:right; white-space:nowrap;">
+                                            <a href="../print/loan_payment_receipt.php?id=<?php echo (int)$rep['repayment_id']; ?>" target="_blank" class="btn btn-small btn-secondary" style="padding:3px 8px; font-size:11px;" title="Print Official Receipt">📄 Receipt</a>
+                                            <a href="loans.php?view_repayments=<?php echo (int)$selectedLoan['loan_id']; ?>&edit_repayment=<?php echo (int)$rep['repayment_id']; ?>#repayment-section" class="btn btn-small btn-secondary" style="padding:3px 8px; font-size:11px;">Edit</a>
+                                            <form method="post" style="display:inline;" onsubmit="return confirm('Delete this payment of <?php echo money($rep['amount']); ?>? The remaining balance will be increased.');">
+                                                <?php echo csrf_field(); ?>
+                                                <input type="hidden" name="action" value="delete_repayment">
+                                                <input type="hidden" name="repayment_id" value="<?php echo (int)$rep['repayment_id']; ?>">
+                                                <input type="hidden" name="loan_id" value="<?php echo (int)$selectedLoan['loan_id']; ?>">
+                                                <button type="submit" class="btn btn-small btn-secondary" style="padding:3px 8px; font-size:11px; color:#b91c1c;">Delete</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                <?php endforeach; endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            <?php endif; ?>
+
             <?php if ($showAdd): ?>
             <section class="card" style="margin-bottom: 20px;">
                 <div class="card-head">
@@ -197,7 +426,7 @@ $showAdd = isset($_GET['new']) && $_GET['new'] === '1';
                     <?php echo csrf_field(); ?>
                     <input type="hidden" name="action" value="save_loan">
 
-                    <div class="form-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px;">
+                    <div class="form-grid loan-form-grid">
                         <div class="field">
                             <label>Employee <span class="required">*</span></label>
                             <select name="employee_id" required>
@@ -253,7 +482,7 @@ $showAdd = isset($_GET['new']) && $_GET['new'] === '1';
                         </div>
                     </div>
 
-                    <div style="margin-top: 18px; display:flex; gap:10px;">
+                    <div style="margin-top: 18px; display:flex; flex-wrap:wrap; gap:10px;">
                         <button type="submit" class="btn btn-primary">Save loan</button>
                         <a href="loans.php" class="btn btn-secondary">Cancel</a>
                     </div>
@@ -329,7 +558,10 @@ $showAdd = isset($_GET['new']) && $_GET['new'] === '1';
                                     ?>
                                     <span class="badge <?php echo $bClass; ?>"><?php echo e($l['status']); ?></span>
                                 </td>
-                                <td style="text-align:right;">
+                                <td style="text-align:right; white-space:nowrap;">
+                                    <a href="loans.php?view_repayments=<?php echo (int)$l['loan_id']; ?>#repayment-section" class="btn btn-small btn-secondary" title="View, Record, and Edit Repayments">
+                                        Repayments (<?php echo (int)$l['repayments_count']; ?>)
+                                    </a>
                                     <?php if ($l['status'] === 'Active' && (int)$l['repayments_count'] === 0): ?>
                                     <form method="post" style="display:inline;" onsubmit="return confirm('Cancel this loan?');">
                                         <?php echo csrf_field(); ?>
@@ -344,12 +576,59 @@ $showAdd = isset($_GET['new']) && $_GET['new'] === '1';
                         </tbody>
                     </table>
                 </div>
+
+                <!-- Pagination Toolbar (Max 10 records per page) -->
+                <?php if ($totalLoansCount > 0): 
+                    $pageStart = $offset + 1;
+                    $pageEnd = min($totalLoansCount, $offset + $recordsPerPage);
+                    $prevPage = $currentPage > 1 ? $currentPage - 1 : 1;
+                    $nextPage = $currentPage < $totalPages ? $currentPage + 1 : $totalPages;
+                    
+                    // Build base query string preserving filters
+                    $queryArgs = $_GET;
+                ?>
+                <div class="pagination-toolbar" style="padding:14px 20px; border-top:1px solid var(--line, #e2e8f0); background: #ffffff;">
+                    <div style="font-size:13px; color:var(--text-muted, #64748b);">
+                        Showing <strong><?php echo $pageStart; ?></strong> to <strong><?php echo $pageEnd; ?></strong> of <strong><?php echo $totalLoansCount; ?></strong> loans
+                    </div>
+                    
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <?php if ($currentPage > 1): 
+                            $queryArgs['page'] = $prevPage;
+                        ?>
+                            <a href="loans.php?<?php echo http_build_query($queryArgs); ?>" class="btn btn-small btn-secondary">
+                                &larr; Previous
+                            </a>
+                        <?php else: ?>
+                            <button type="button" class="btn btn-small btn-secondary" disabled style="opacity:0.5; cursor:not-allowed;">
+                                &larr; Previous
+                            </button>
+                        <?php endif; ?>
+
+                        <span style="font-size:13px; font-weight:600; padding:0 8px; color:var(--text, #1e293b);">
+                            Page <?php echo $currentPage; ?> of <?php echo $totalPages; ?>
+                        </span>
+
+                        <?php if ($currentPage < $totalPages): 
+                            $queryArgs['page'] = $nextPage;
+                        ?>
+                            <a href="loans.php?<?php echo http_build_query($queryArgs); ?>" class="btn btn-small btn-secondary">
+                                Next &rarr;
+                            </a>
+                        <?php else: ?>
+                            <button type="button" class="btn btn-small btn-secondary" disabled style="opacity:0.5; cursor:not-allowed;">
+                                Next &rarr;
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
+
             </section>
         </div>
     </main>
 </div>
 <script>
-// Auto-calculate installment or term when typing
 const inpPrincipal = document.getElementById('inpPrincipal');
 const inpInstallment = document.getElementById('inpInstallment');
 const inpTerms = document.getElementById('inpTerms');

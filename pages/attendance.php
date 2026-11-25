@@ -8,7 +8,7 @@ $error = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     require_csrf();
-    $action = $_POST['action'] ?? 'update_simple';
+    $action = $_POST['action'] ?? 'save_attendance';
 
     if ($action === 'save_attendance') {
         $id = (int)($_POST['attendance_id'] ?? 0);
@@ -114,14 +114,37 @@ if ($position !== '') { $where[] = 'e.position = ?'; $params[] = $position; $typ
 if ($employeeId > 0) { $where[] = 'e.employee_id = ?'; $params[] = $employeeId; $types .= 'i'; }
 if ($periodFilter > 0) { $where[] = 'a.period_id = ?'; $params[] = $periodFilter; $types .= 'i'; }
 
+// Count total attendance records for pagination
+$countSql = 'SELECT COUNT(*) AS total_count
+        FROM attendance a
+        JOIN employees e ON e.employee_id=a.employee_id
+        LEFT JOIN payroll_periods pp ON pp.period_id=a.period_id
+        WHERE ' . implode(' AND ', $where);
+$countStmt = $conn->prepare($countSql);
+$countStmt->bind_param($types, ...$params);
+$countStmt->execute();
+$totalAttendanceCount = (int)$countStmt->get_result()->fetch_assoc()['total_count'];
+
+$recordsPerPage = 10;
+$currentPage = max(1, (int)($_GET['page'] ?? 1));
+$totalPages = max(1, (int)ceil($totalAttendanceCount / $recordsPerPage));
+if ($currentPage > $totalPages) $currentPage = $totalPages;
+$offset = ($currentPage - 1) * $recordsPerPage;
+
 $sql = 'SELECT a.*, e.employee_no, e.first_name, e.last_name, e.department, e.position, pp.period_code
         FROM attendance a
         JOIN employees e ON e.employee_id=a.employee_id
         LEFT JOIN payroll_periods pp ON pp.period_id=a.period_id
         WHERE ' . implode(' AND ', $where) . '
-        ORDER BY a.attendance_date DESC, e.last_name, e.first_name';
+        ORDER BY a.attendance_date DESC, e.last_name, e.first_name
+        LIMIT ? OFFSET ?';
+$paramsWithLimit = $params;
+$paramsWithLimit[] = $recordsPerPage;
+$paramsWithLimit[] = $offset;
+$typesWithLimit = $types . 'ii';
+
 $stmt = $conn->prepare($sql);
-$stmt->bind_param($types, ...$params);
+$stmt->bind_param($typesWithLimit, ...$paramsWithLimit);
 $stmt->execute();
 $rows = $stmt->get_result();
 
@@ -244,6 +267,51 @@ if ($employeeId > 0) {
         </tbody>
     </table>
     </div>
+
+    <!-- 10 Persons/Records per Page Pagination -->
+    <?php 
+        $attStart = $totalAttendanceCount > 0 ? $offset + 1 : 0;
+        $attEnd = min($totalAttendanceCount, $offset + $recordsPerPage);
+        $prevPage = $currentPage > 1 ? $currentPage - 1 : 1;
+        $nextPage = $currentPage < $totalPages ? $currentPage + 1 : $totalPages;
+        $queryArgs = $_GET;
+    ?>
+    <div class="pagination-toolbar no-print" style="padding:14px 20px; border-top:1px solid var(--line, #e2e8f0); background: #ffffff;">
+        <div style="font-size:13px; color:var(--text-muted, #64748b);">
+            Showing <strong><?php echo $attStart; ?></strong> to <strong><?php echo $attEnd; ?></strong> of <strong><?php echo $totalAttendanceCount; ?></strong> attendance logs
+        </div>
+        
+        <div style="display:flex; align-items:center; gap:8px;">
+            <?php if ($currentPage > 1): 
+                $queryArgs['page'] = $prevPage;
+            ?>
+                <a href="attendance.php?<?php echo http_build_query($queryArgs); ?>" class="btn btn-small btn-secondary">
+                    &larr; Previous
+                </a>
+            <?php else: ?>
+                <button type="button" class="btn btn-small btn-secondary" disabled style="opacity:0.5; cursor:not-allowed;">
+                    &larr; Previous
+                </button>
+            <?php endif; ?>
+
+            <span style="font-size:13px; font-weight:600; padding:0 8px; color:var(--text, #1e293b);">
+                Page <?php echo $currentPage; ?> of <?php echo $totalPages; ?>
+            </span>
+
+            <?php if ($currentPage < $totalPages): 
+                $queryArgs['page'] = $nextPage;
+            ?>
+                <a href="attendance.php?<?php echo http_build_query($queryArgs); ?>" class="btn btn-small btn-secondary">
+                    Next &rarr;
+                </a>
+            <?php else: ?>
+                <button type="button" class="btn btn-small btn-secondary" disabled style="opacity:0.5; cursor:not-allowed;">
+                    Next &rarr;
+                </button>
+            <?php endif; ?>
+        </div>
+    </div>
+
     <div class="attendance-print-footer print-only">Generated <?php echo e(date('M d, Y h:i A')); ?> · Lipa City Colleges</div>
 </section>
 </div></main></div>

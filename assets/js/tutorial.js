@@ -7,7 +7,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const steps = document.querySelectorAll(".tutorial-step");
     const dots = document.querySelectorAll(".tutorial-dot");
 
-    if (!overlay || steps.length === 0) {
+    if (!overlay || steps.length === 0 || !nextButton || !skipButton) {
         return;
     }
 

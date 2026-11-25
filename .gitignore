@@ -7,27 +7,55 @@
 .env.*
 !.env.example
 config/database.local.php
+*.key
+*.pem
+*.cert
 
-# Local backups & database dumps
+# Database files, dumps, and local backups
 /backups/
-*.zip
-*.tar
-*.tar.gz
-*.tgz
-*.bak
+*.sql
 *.sql.gz
+*.sql.bak
+*.sqlite
+*.sqlite3
+*.db
+*.rdb
+
+# AI assistant configuration & agent skills
+AGENTS.md
+.AGENTS.md
+GEMINI.md
+.GEMINI.md
+.agents/
+.cursor/
+.gemini/
+.claude/
+skills/
+
+# Runtime exports and generated documents
+*.csv
+*.xlsx
+*.xls
 
 # Runtime employee photo uploads (keep folder & brand logos)
 /uploads/employee_photos/*
 !/uploads/employee_photos/.gitkeep
 
-# Temporary / scratch / verification scripts
+# Temporary, scratch, and verification test scripts
 /scratch/
+scratch/
 verify_*.py
+verify_*.php
+test_*.py
+test_*.php
 *.tmp
 *.temp
 *.log
 php_errors.log
+error_log
+access_log
+__pycache__/
+*.pyc
 
 # IDE & Editor directories
 .vscode/
@@ -37,6 +65,8 @@ php_errors.log
 *~
 *.sublime-project
 *.sublime-workspace
+.project
+.settings/
 
 # OS generated files
 .DS_Store

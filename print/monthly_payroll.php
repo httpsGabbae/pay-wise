@@ -222,9 +222,10 @@ $pdf->SetFont('Arial', '', 7.2);
 $pdf->SetTextColor(80, 96, 102);
 $colW = ($summaryW - 12) / 4;
 $i = 0;
+$gridBaseY = $pdf->GetY();
 foreach (array_slice($departments, 0, 8, true) as $department => $count) {
     $x = 12 + ($i % 4) * ($colW + 4);
-    $y = $pdf->GetY() + intdiv($i, 4) * 13;
+    $y = $gridBaseY + intdiv($i, 4) * 13;
     $pdf->SetFillColor(248, 250, 250);
     $pdf->SetDrawColor(220, 228, 229);
     $pdf->Rect($x, $y, $colW, 10, 1.5, 'DF');
@@ -237,7 +238,7 @@ foreach (array_slice($departments, 0, 8, true) as $department => $count) {
     $pdf->SetTextColor(80, 96, 102);
     $i++;
 }
-if ($i > 0) $pdf->SetY($pdf->GetY() + intdiv($i - 1, 4) * 13 + 16);
+if ($i > 0) $pdf->SetY($gridBaseY + intdiv($i - 1, 4) * 13 + 16);
 
 $pdf->Ln(2);
 $pdf->SetFont('Arial', '', 7.2);

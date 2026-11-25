@@ -46,7 +46,20 @@ if ($search !== '') {
     }
 }
 
-$sql = "SELECT employee_id,employee_no,first_name,middle_name,last_name,photo_path,department,position,employment_status,basic_salary,created_at FROM employees $where ORDER BY last_name,first_name";
+// Count total matching employees for pagination
+$countSql = "SELECT COUNT(*) AS total_count FROM employees $where";
+$countStmt = $conn->prepare($countSql);
+if ($params) $countStmt->bind_param($types, ...$params);
+$countStmt->execute();
+$totalEmployeesCount = (int)$countStmt->get_result()->fetch_assoc()['total_count'];
+
+$recordsPerPage = 10;
+$currentPage = max(1, (int)($_GET['page'] ?? 1));
+$totalPages = max(1, (int)ceil($totalEmployeesCount / $recordsPerPage));
+if ($currentPage > $totalPages) $currentPage = $totalPages;
+$offset = ($currentPage - 1) * $recordsPerPage;
+
+$sql = "SELECT employee_id,employee_no,first_name,middle_name,last_name,photo_path,department,position,employment_status,basic_salary,created_at FROM employees $where ORDER BY last_name,first_name LIMIT $recordsPerPage OFFSET $offset";
 $stmt = $conn->prepare($sql);
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
@@ -116,7 +129,7 @@ while ($row = $result->fetch_assoc()) $employees[] = $row;
                                 <td class="action-col">
                                     <div class="icon-actions">
                                         <button type="button" class="icon-action view" title="View record" aria-label="View record" onclick="openEmployeePreview(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('eye'); ?></button>
-                                        <button type="button" class="icon-action salary" title="Compensation" aria-label="Compensation" onclick="openSalaryModal(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('wallet'); ?></button><form method="post" action="../employee/login.php" target="_blank" style="display:inline"><?php echo csrf_field(); ?><input type="hidden" name="action" value="admin_preview"><input type="hidden" name="employee_no" value="<?php echo e($row['employee_no']); ?>"><button type="submit" class="icon-action" title="Open portal" aria-label="Open portal">↗</button></form>
+                                        <?php if (in_array(admin_role(), ['superadmin', 'finance'], true)): ?><button type="button" class="icon-action salary" title="Compensation" aria-label="Compensation" onclick="openSalaryModal(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('wallet'); ?></button><?php endif; ?><form method="post" action="../employee/login.php" target="_blank" style="display:inline"><?php echo csrf_field(); ?><input type="hidden" name="action" value="admin_preview"><input type="hidden" name="employee_no" value="<?php echo e($row['employee_no']); ?>"><button type="submit" class="icon-action" title="Open portal" aria-label="Open portal">↗</button></form>
                                         <a class="icon-action edit" title="Edit" aria-label="Edit" href="personalinfo.php?edit=<?php echo (int)$row['employee_id']; ?>"><?php echo ui_icon('pencil'); ?></a>
                                         <form method="post" action="employees.php" style="display:inline" onsubmit="return confirm('Delete this employee? This cannot be undone.')"><?php echo csrf_field(); ?><input type="hidden" name="action" value="delete"><input type="hidden" name="employee_id" value="<?php echo (int)$row['employee_id']; ?>"><button type="submit" class="icon-action delete" title="Delete" aria-label="Delete"><?php echo ui_icon('trash'); ?></button></form>
                                     </div>
@@ -126,6 +139,50 @@ while ($row = $result->fetch_assoc()) $employees[] = $row;
                         </tbody>
                     </table>
                 </div>
+
+                <?php if ($totalEmployeesCount > 0): 
+                    $pageStart = $offset + 1;
+                    $pageEnd = min($totalEmployeesCount, $offset + $recordsPerPage);
+                    $prevPage = $currentPage > 1 ? $currentPage - 1 : 1;
+                    $nextPage = $currentPage < $totalPages ? $currentPage + 1 : $totalPages;
+                    $queryArgs = $_GET;
+                ?>
+                <div class="pagination-toolbar" style="padding:14px 20px; border-top:1px solid var(--line, #e2e8f0); background: #ffffff;">
+                    <div style="font-size:13px; color:var(--text-muted, #64748b);">
+                        Showing <strong><?php echo $pageStart; ?></strong> to <strong><?php echo $pageEnd; ?></strong> of <strong><?php echo $totalEmployeesCount; ?></strong> employees
+                    </div>
+                    
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <?php if ($currentPage > 1): 
+                            $queryArgs['page'] = $prevPage;
+                        ?>
+                            <a href="employees.php?<?php echo http_build_query($queryArgs); ?>" class="btn btn-small btn-secondary">
+                                &larr; Previous
+                            </a>
+                        <?php else: ?>
+                            <button type="button" class="btn btn-small btn-secondary" disabled style="opacity:0.5; cursor:not-allowed;">
+                                &larr; Previous
+                            </button>
+                        <?php endif; ?>
+
+                        <span style="font-size:13px; font-weight:600; padding:0 8px; color:var(--text, #1e293b);">
+                            Page <?php echo $currentPage; ?> of <?php echo $totalPages; ?>
+                        </span>
+
+                        <?php if ($currentPage < $totalPages): 
+                            $queryArgs['page'] = $nextPage;
+                        ?>
+                            <a href="employees.php?<?php echo http_build_query($queryArgs); ?>" class="btn btn-small btn-secondary">
+                                Next &rarr;
+                            </a>
+                        <?php else: ?>
+                            <button type="button" class="btn btn-small btn-secondary" disabled style="opacity:0.5; cursor:not-allowed;">
+                                Next &rarr;
+                            </button>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             </section>
         </div>
     </main>

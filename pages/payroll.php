@@ -49,8 +49,13 @@ if (isset($_GET['api']) && $_GET['api'] === 'calc_employee') {
     }
 
     // 1. Loans: sum active loan installments
-    $lStmt = $conn->prepare('SELECT COALESCE(SUM(installment), 0) AS loan_sum FROM employee_loans WHERE employee_id=? AND status="Active" AND remaining_balance > 0');
-    $lStmt->bind_param('i', $empId);
+    if ($end !== '') {
+        $lStmt = $conn->prepare('SELECT COALESCE(SUM(installment), 0) AS loan_sum FROM employee_loans WHERE employee_id=? AND status="Active" AND remaining_balance > 0 AND (repayment_start IS NULL OR repayment_start <= ?)');
+        $lStmt->bind_param('is', $empId, $end);
+    } else {
+        $lStmt = $conn->prepare('SELECT COALESCE(SUM(installment), 0) AS loan_sum FROM employee_loans WHERE employee_id=? AND status="Active" AND remaining_balance > 0');
+        $lStmt->bind_param('i', $empId);
+    }
     $lStmt->execute();
     $loanSum = round((float)$lStmt->get_result()->fetch_assoc()['loan_sum'], 2);
 
@@ -146,10 +151,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $pStmt->execute();
                     $pRow = $pStmt->get_result()->fetch_assoc();
 
-                    if ($pRow) {
+                    if ($pRow && (float)$pRow['loan_deductions'] > 0) {
                         $pId = (int)$pRow['payroll_id'];
                         $empId = (int)$pRow['employee_id'];
-                        $pDate = $pRow['pay_date'] ?: $pRow['period_end'];
+                        $pDate = !empty($pRow['pay_date']) ? $pRow['pay_date'] : ($pRow['period_end'] ?: date('Y-m-d'));
 
                         // Check if already posted
                         $chkRepay = $conn->prepare('SELECT repayment_id FROM loan_repayments WHERE payroll_id=? LIMIT 1');

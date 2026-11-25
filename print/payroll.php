@@ -1,16 +1,26 @@
 <?php
 
-require_once __DIR__ . '/../includes/auth.php';
+require_once __DIR__ . '/../config/database.php';
 require_once __DIR__ . '/../includes/pdf.php';
 
 $isAdmin = !empty($_SESSION['admin_id']);
 $sessionEmployeeId = (int)($_SESSION['employee_id'] ?? 0);
 
 if ($isAdmin) {
+    require_once __DIR__ . '/../includes/auth.php';
     require_role('superadmin', 'finance');
 } elseif ($sessionEmployeeId <= 0) {
     header('Location: ../employee/login.php');
     exit;
+} else {
+    $empChk = $conn->prepare('SELECT employment_status FROM employees WHERE employee_id=? LIMIT 1');
+    $empChk->bind_param('i', $sessionEmployeeId);
+    $empChk->execute();
+    $empRow = $empChk->get_result()->fetch_assoc();
+    if (!$empRow || !is_active_employment_status($empRow['employment_status'] ?? '')) {
+        header('Location: ../employee/login.php?error=inactive');
+        exit;
+    }
 }
 
 if (!function_exists('employee_name')) {
