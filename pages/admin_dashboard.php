@@ -455,8 +455,8 @@ $formatted_welcome_date = date('l, d F Y');
                     <!-- Employee Cell -->
                     <td>
                       <div class="quickroll-employee-cell">
-                        <?php if (!empty($employee_record['photo_path']) && file_exists(__DIR__ . '/../' . $employee_record['photo_path'])): ?>
-                          <img class="quickroll-avatar-thumb" src="../<?php echo e($employee_record['photo_path']); ?>" alt="<?php echo e($employee_full_name); ?>">
+                        <?php if (!empty($employee_record['photo_path']) && (strpos($employee_record['photo_path'], 'data:image/') === 0 || file_exists(__DIR__ . '/../' . $employee_record['photo_path']))): ?>
+                          <img class="quickroll-avatar-thumb" src="<?php echo e(employee_photo_url($employee_record['photo_path'])); ?>" alt="<?php echo e($employee_full_name); ?>">
                         <?php else: ?>
                           <div class="quickroll-avatar-thumb"><?php echo e($employee_initial); ?></div>
                         <?php endif; ?>

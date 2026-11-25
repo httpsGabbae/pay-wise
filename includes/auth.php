@@ -85,7 +85,7 @@ function employee_full_name_last_first(array $employee): string
     return trim($employee['last_name'] . ', ' . $employee['first_name'] . ' ' . ($employee['middle_name'] ?? ''));
 }
 
-function setting(mysqli $conn, string $key, string $default = ''): string
+function setting($conn, string $key, string $default = ''): string
 {
     $stmt = $conn->prepare('SELECT setting_value FROM app_settings WHERE setting_key = ? LIMIT 1');
     $stmt->bind_param('s', $key);
@@ -94,7 +94,7 @@ function setting(mysqli $conn, string $key, string $default = ''): string
     return $row['setting_value'] ?? $default;
 }
 
-function next_employee_no(mysqli $conn): string
+function next_employee_no($conn): string
 {
     $prefix = preg_replace('/[^0-9A-Za-z]/', '', setting($conn, 'employee_number_prefix', '25'));
     $digits = max(1, min(8, (int)setting($conn, 'employee_number_digits', '4')));
@@ -140,14 +140,26 @@ function upload_employee_photo(?array $file, ?string $current = null)
     }
 
     $directory = __DIR__ . '/../uploads/employee_photos';
-    if (!is_dir($directory) && !mkdir($directory, 0775, true)) {
-        return ['error' => 'The employee photo folder could not be created.'];
+    $is_serverless = getenv('VERCEL') !== false || (!is_dir($directory) && !@mkdir($directory, 0775, true)) || !is_writable($directory);
+
+    if ($is_serverless) {
+        $raw_bytes = @file_get_contents($file['tmp_name']);
+        if ($raw_bytes === false) {
+            return ['error' => 'The employee photo could not be read.'];
+        }
+        $mime_type = ($ext === 'png') ? 'image/png' : 'image/jpeg';
+        return 'data:' . $mime_type . ';base64,' . base64_encode($raw_bytes);
     }
 
     $filename = 'emp_' . date('Ymd_His') . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
     $path = $directory . '/' . $filename;
 
-    if (!move_uploaded_file($file['tmp_name'], $path)) {
+    if (!@move_uploaded_file($file['tmp_name'], $path)) {
+        $raw_bytes = @file_get_contents($file['tmp_name']);
+        if ($raw_bytes !== false) {
+            $mime_type = ($ext === 'png') ? 'image/png' : 'image/jpeg';
+            return 'data:' . $mime_type . ';base64,' . base64_encode($raw_bytes);
+        }
         return ['error' => 'The employee photo could not be saved.'];
     }
 

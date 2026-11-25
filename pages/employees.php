@@ -118,7 +118,7 @@ while ($row = $result->fetch_assoc()) $employees[] = $row;
                         <?php else: foreach ($employees as $row): ?>
                             <tr>
                                 <td><div class="person-cell">
-                                    <?php if (!empty($row['photo_path'])): ?><img class="list-photo" src="../<?php echo e(ltrim($row['photo_path'], '/')); ?>" alt="">
+                                    <?php if (!empty($row['photo_path'])): ?><img class="list-photo" src="<?php echo e(employee_photo_url($row['photo_path'])); ?>" alt="">
                                     <?php else: ?><div class="list-avatar"><?php echo e(strtoupper(substr($row['first_name'], 0, 1) . substr($row['last_name'], 0, 1))); ?></div><?php endif; ?>
                                     <div><strong><?php echo e(employee_full_name_last_first($row)); ?></strong></div>
                                 </div></td>

@@ -6,7 +6,7 @@ require_once __DIR__ . '/../includes/layout.php';
 $feedback_message = '';
 $feedback_error = '';
 
-function is_payroll_period_locked(mysqli $database_connection, ?int $payroll_period_id): bool
+function is_payroll_period_locked($database_connection, ?int $payroll_period_id): bool
 {
     if (!$payroll_period_id || $payroll_period_id <= 0) {
         return false;

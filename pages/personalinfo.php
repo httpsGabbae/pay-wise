@@ -228,7 +228,7 @@ if ($positionResult) {
                             <div class="field"><label>Date hired</label><input type="date" name="date_hired" value="<?php echo field_value($employee, 'date_hired'); ?>"></div>
                             <div class="field"><label>Photo <span class="mini">JPG/PNG, max 2MB</span></label><input type="file" name="employee_photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></div>
                         </div>
-                        <?php if ($employee && !empty($employee['photo_path'])): ?><div style="margin-top:8px"><img class="profile-photo" src="../<?php echo e(ltrim($employee['photo_path'], '/')); ?>" alt="Employee photo"></div><?php endif; ?>
+                        <?php if ($employee && !empty($employee['photo_path'])): ?><div style="margin-top:8px"><img class="profile-photo" src="<?php echo e(employee_photo_url($employee['photo_path'])); ?>" alt="Employee photo"></div><?php endif; ?>
 
                         <div class="section-title">Contact & Portal Access</div>
                         <div class="form-grid">

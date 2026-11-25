@@ -1,20 +1,6 @@
 <?php
 date_default_timezone_set('Asia/Manila');
 
-if (session_status() === PHP_SESSION_NONE) {
-    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off');
-    if (PHP_VERSION_ID >= 70300) {
-        session_set_cookie_params([
-            'lifetime' => 0,
-            'path' => '/',
-            'secure' => $isSecure,
-            'httponly' => true,
-            'samesite' => 'Lax',
-        ]);
-    }
-    session_start();
-}
-
 $candidateEnvironmentFiles = [
     dirname(__DIR__) . '/.env',
     dirname(__DIR__) . '/.env.local',
@@ -49,6 +35,20 @@ if (!function_exists('money')) {
     function money($value): string
     {
         return '₱ ' . number_format((float)$value, 2);
+    }
+}
+
+if (!function_exists('employee_photo_url')) {
+    function employee_photo_url(?string $path, string $relative_prefix = '../'): string
+    {
+        $cleaned_path = trim((string)$path);
+        if ($cleaned_path === '') {
+            return '';
+        }
+        if (strpos($cleaned_path, 'data:image/') === 0 || preg_match('/^https?:\/\//i', $cleaned_path)) {
+            return $cleaned_path;
+        }
+        return $relative_prefix . ltrim($cleaned_path, '/\\');
     }
 }
 
@@ -217,9 +217,16 @@ if (!class_exists('SupabasePgResult')) {
             $this->pdo_instance->exec("SET TIME ZONE 'Asia/Manila'");
         }
 
+        public function getPdo(): PDO
+        {
+            return $this->pdo_instance;
+        }
+
         public static function translateSql(string $sql): string
         {
-            $sql = preg_replace('/\bstatus\s*=\s*"([^"]+)"/i', "status = '$1'", $sql);
+            $sql = preg_replace_callback('/"([^"]*)"/', function (array $matches): string {
+                return "'" . str_replace("'", "''", $matches[1]) . "'";
+            }, $sql);
             $sql = preg_replace("/SUM\(\s*status\s*=\s*'([^']+)'\s*\)/i", "SUM(CASE WHEN status='$1' THEN 1 ELSE 0 END)", $sql);
             $sql = preg_replace("/DATE_FORMAT\(\s*CURDATE\(\)\s*,\s*'%Y-%m-01'\s*\)/i", "DATE_TRUNC('month', CURRENT_DATE)::date", $sql);
             $sql = preg_replace("/DATE_FORMAT\(\s*([a-zA-Z0-9_.]+)\s*,\s*'%Y-%m'\s*\)/i", "TO_CHAR($1, 'YYYY-MM')", $sql);
@@ -285,6 +292,76 @@ if (!class_exists('SupabasePgResult')) {
             return $this->pdo_instance->rollBack();
         }
     }
+
+    class SupabaseSessionHandler implements SessionHandlerInterface
+    {
+        private PDO $pdo_instance;
+
+        public function __construct(PDO $pdo)
+        {
+            $this->pdo_instance = $pdo;
+        }
+
+        public function open(string $save_path, string $session_name): bool
+        {
+            return true;
+        }
+
+        public function close(): bool
+        {
+            return true;
+        }
+
+        public function read(string $session_id): string|false
+        {
+            try {
+                $statement = $this->pdo_instance->prepare('SELECT session_data FROM public.app_sessions WHERE session_id = ? LIMIT 1');
+                $statement->execute([$session_id]);
+                $row = $statement->fetch(PDO::FETCH_ASSOC);
+                return $row ? (string)$row['session_data'] : '';
+            } catch (Throwable $error) {
+                try {
+                    $this->pdo_instance->exec("CREATE TABLE IF NOT EXISTS public.app_sessions (session_id VARCHAR(128) PRIMARY KEY, session_data TEXT NOT NULL DEFAULT '', updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())");
+                } catch (Throwable $ignored) {
+                }
+                return '';
+            }
+        }
+
+        public function write(string $session_id, string $session_data): bool
+        {
+            try {
+                $statement = $this->pdo_instance->prepare(
+                    'INSERT INTO public.app_sessions (session_id, session_data, updated_at) VALUES (?, ?, NOW())
+                     ON CONFLICT (session_id) DO UPDATE SET session_data = EXCLUDED.session_data, updated_at = NOW()'
+                );
+                return $statement->execute([$session_id, $session_data]);
+            } catch (Throwable $error) {
+                return false;
+            }
+        }
+
+        public function destroy(string $session_id): bool
+        {
+            try {
+                $statement = $this->pdo_instance->prepare('DELETE FROM public.app_sessions WHERE session_id = ?');
+                return $statement->execute([$session_id]);
+            } catch (Throwable $error) {
+                return false;
+            }
+        }
+
+        public function gc(int $max_lifetime): int|false
+        {
+            try {
+                $statement = $this->pdo_instance->prepare("DELETE FROM public.app_sessions WHERE updated_at < NOW() - (? * INTERVAL '1 second')");
+                $statement->execute([$max_lifetime]);
+                return $statement->rowCount();
+            } catch (Throwable $error) {
+                return 0;
+            }
+        }
+    }
 }
 
 $cloudDatabaseUrl = trim((string)(getenv('DATABASE_URL') ?: getenv('SUPABASE_DATABASE_URL') ?: getenv('NEON_DATABASE_URL') ?: ''));
@@ -317,6 +394,24 @@ if ($cloudDatabaseUrl !== '' && preg_match('/^postgres(?:ql)?:\/\//i', $cloudDat
     }
     $conn->set_charset('utf8mb4');
     @$conn->query("SET time_zone = '+08:00'");
+}
+
+if (session_status() === PHP_SESSION_NONE) {
+    if ($conn instanceof SupabasePgConnection) {
+        session_set_save_handler(new SupabaseSessionHandler($conn->getPdo()), true);
+    }
+    $isSecure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '') === 'https');
+    if (PHP_VERSION_ID >= 70300) {
+        session_set_cookie_params([
+            'lifetime' => 0,
+            'path' => '/',
+            'secure' => $isSecure,
+            'httponly' => true,
+            'samesite' => 'Lax',
+        ]);
+    }
+    session_start();
 }
 
 if (!function_exists('dept_color_key')) {

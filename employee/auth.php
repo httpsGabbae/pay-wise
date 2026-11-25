@@ -12,11 +12,15 @@ if (!function_exists('e')) {
 if (!function_exists('money')) {
     function money($value): string { return '₱ ' . number_format((float)$value, 2); }
 }
-function employee_photo_url(?string $path): string {
-    $path = ltrim(trim((string)$path), '/\\');
-    return $path === '' ? '' : '../' . $path;
+if (!function_exists('employee_photo_url')) {
+    function employee_photo_url(?string $path): string {
+        $path = trim((string)$path);
+        if ($path === '') return '';
+        if (strpos($path, 'data:image/') === 0 || preg_match('/^https?:\/\//i', $path)) return $path;
+        return '../' . ltrim($path, '/\\');
+    }
 }
-function current_employee(mysqli $conn): ?array {
+function current_employee($conn): ?array {
     $id = (int)($_SESSION['employee_id'] ?? 0);
     if ($id <= 0) return null;
     $stmt = $conn->prepare('SELECT * FROM employees WHERE employee_id=? LIMIT 1');

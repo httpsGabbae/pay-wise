@@ -20,7 +20,7 @@ $photo = trim((string)$employee['photo_path']);
 <div class="employee-dossier">
     <div class="dossier-top">
         <div class="dossier-person">
-            <?php if ($photo): ?><img src="../<?php echo e(ltrim($photo, '/')); ?>" class="dossier-photo" alt="Employee photo"><?php else: ?><div class="dossier-photo dossier-photo-empty"><?php echo e(strtoupper(substr($employee['first_name'],0,1).substr($employee['last_name'],0,1))); ?></div><?php endif; ?>
+            <?php if ($photo): ?><img src="<?php echo e(employee_photo_url($photo)); ?>" class="dossier-photo" alt="Employee photo"><?php else: ?><div class="dossier-photo dossier-photo-empty"><?php echo e(strtoupper(substr($employee['first_name'],0,1).substr($employee['last_name'],0,1))); ?></div><?php endif; ?>
             <div><h1><?php echo e($fullName); ?></h1><div class="dossier-id"><?php echo e($employee['employee_no']); ?> · <?php echo e($employee['employment_status']); ?></div></div>
         </div>
     </div>

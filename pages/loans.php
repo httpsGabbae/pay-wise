@@ -7,7 +7,7 @@ $message = '';
 $error = '';
 $editLoan = null;
 
-function recalculate_loan_balance_and_status(mysqli $conn, int $loanId): void
+function recalculate_loan_balance_and_status($conn, int $loanId): void
 {
     $stmt = $conn->prepare('SELECT principal FROM employee_loans WHERE loan_id = ? LIMIT 1');
     $stmt->bind_param('i', $loanId);
