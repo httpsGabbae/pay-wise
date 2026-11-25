@@ -3707,7 +3707,7 @@ body:not(.sidebar-collapsed) .employee-sidebar .brand-text {
     overflow: hidden !important;
   }
 
-  /* Full-width content: remove permanent left icon rail reservation */
+  /* Full-width content: remove permanent left icon rail reservation & offset fixed mobile header */
   .main,
   body.sidebar-collapsed .main,
   body:not(.sidebar-collapsed) .main {
@@ -3715,19 +3715,24 @@ body:not(.sidebar-collapsed) .employee-sidebar .brand-text {
     width: 100% !important;
     max-width: 100vw !important;
     min-width: 0 !important;
+    padding-top: calc(58px + env(safe-area-inset-top, 0px)) !important;
   }
 
-  /* Compact Mobile Top Header */
+  /* Compact Fixed Mobile Top Header */
   .topbar {
-    position: sticky !important;
+    position: fixed !important;
     top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    width: 100% !important;
     z-index: 1200 !important;
-    height: 58px !important;
-    padding: 0 12px !important;
+    height: calc(58px + env(safe-area-inset-top, 0px)) !important;
+    padding: env(safe-area-inset-top, 0px) 12px 0 !important;
     gap: 8px !important;
     display: flex !important;
     align-items: center !important;
     justify-content: space-between !important;
+    box-sizing: border-box !important;
   }
 
   .topbar-left {
@@ -4023,5 +4028,13 @@ body:not(.sidebar-collapsed) .employee-sidebar .brand-text {
   body.mobile-drawer-open .mobile-drawer-backdrop {
     opacity: 1 !important;
     pointer-events: auto !important;
+  }
+}
+
+@media print {
+  .main,
+  body.sidebar-collapsed .main,
+  body:not(.sidebar-collapsed) .main {
+    padding-top: 0 !important;
   }
 }

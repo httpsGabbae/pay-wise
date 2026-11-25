@@ -161,7 +161,7 @@ $formatted_welcome_date = date('l, d F Y');
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="icon" type="image/png" href="../assets/favicon.png?v=lcc1">
   <title>Lipa City Colleges · Dashboard</title>
-  <link rel="stylesheet" href="../assets/css/app.css?v=20261125-mob1">
+  <link rel="stylesheet" href="../assets/css/app.css?v=20261125-mob2">
   <link rel="stylesheet" href="../assets/css/apple-system.css?v=20261112-clean1">
   <link rel="stylesheet" href="../assets/css/quickroll_executive_dashboard_styling.css?v=20261125-mob1">
   <script src="../assets/js/app.js?v=20261125-mob1" defer></script>
