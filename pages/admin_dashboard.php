@@ -44,7 +44,7 @@ $delayed_payroll_payout_amount = (float)$payout_summary_data['delayed_paid'];
 // 6. Dynamic Real Payroll History Periods for Bar Chart
 $periods_history_query = $conn->query("
     SELECT 
-        COALESCE(pp.period_code, CONCAT(DATE_FORMAT(pr.period_start, '%b %d'), ' - ', DATE_FORMAT(pr.period_end, '%b %d'))) AS period_name,
+        COALESCE(MAX(pp.period_code), CONCAT(DATE_FORMAT(pr.period_start, '%b %d'), ' - ', DATE_FORMAT(pr.period_end, '%b %d'))) AS period_name,
         DATE_FORMAT(pr.period_start, '%d %b') AS short_date,
         COALESCE(SUM(pr.gross_pay), 0) AS total_gross,
         COALESCE(SUM(pr.deductions), 0) AS total_deductions,

@@ -444,7 +444,7 @@ DECLARE
 BEGIN
     PERFORM set_config('TimeZone', 'Asia/Manila', true);
 
-    IF cleaned_query ~* '^\s*(SELECT|WITH|SHOW)\b' THEN
+    IF cleaned_query ~* '^\s*(SELECT|WITH|SHOW)\s' THEN
         EXECUTE 'SELECT COALESCE(jsonb_agg(row_to_json(t)), ''[]''::jsonb) FROM (' || cleaned_query || ') t'
         INTO result_rows;
         RETURN jsonb_build_object(

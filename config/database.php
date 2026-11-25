@@ -229,7 +229,24 @@ if (!class_exists('SupabasePgResult')) {
             }, $sql);
             $sql = preg_replace("/SUM\(\s*status\s*=\s*'([^']+)'\s*\)/i", "SUM(CASE WHEN status='$1' THEN 1 ELSE 0 END)", $sql);
             $sql = preg_replace("/DATE_FORMAT\(\s*CURDATE\(\)\s*,\s*'%Y-%m-01'\s*\)/i", "DATE_TRUNC('month', CURRENT_DATE)::date", $sql);
-            $sql = preg_replace("/DATE_FORMAT\(\s*([a-zA-Z0-9_.]+)\s*,\s*'%Y-%m'\s*\)/i", "TO_CHAR($1, 'YYYY-MM')", $sql);
+            $sql = preg_replace_callback(
+                "/DATE_FORMAT\(\s*([^,]+?)\s*,\s*'([^']+)'\s*\)/i",
+                function (array $matches): string {
+                    $pg_format = strtr($matches[2], [
+                        '%Y' => 'YYYY',
+                        '%y' => 'YY',
+                        '%m' => 'MM',
+                        '%b' => 'Mon',
+                        '%M' => 'Month',
+                        '%d' => 'DD',
+                        '%H' => 'HH24',
+                        '%i' => 'MI',
+                        '%s' => 'SS',
+                    ]);
+                    return "TO_CHAR({$matches[1]}, '{$pg_format}')";
+                },
+                $sql
+            );
             $sql = preg_replace("/LAST_DAY\(\s*CURDATE\(\)\s*\)/i", "(DATE_TRUNC('month', CURRENT_DATE) + INTERVAL '1 month - 1 day')::date", $sql);
             $sql = preg_replace("/\bYEAR\(\s*CURDATE\(\)\s*\)/i", "EXTRACT(YEAR FROM CURRENT_DATE)", $sql);
             $sql = preg_replace("/\bYEAR\(\s*([a-zA-Z0-9_.]+)\s*\)/i", "EXTRACT(YEAR FROM $1)", $sql);
@@ -534,29 +551,57 @@ if (!class_exists('SupabasePgResult')) {
     }
 }
 
-$cloudDatabaseUrl = trim((string)(
-    getenv('DATABASE_URL')
-    ?: getenv('POSTGRES_URL')
-    ?: getenv('POSTGRES_PRISMA_URL')
-    ?: getenv('POSTGRES_URL_NON_POOLING')
-    ?: getenv('SUPABASE_DATABASE_URL')
-    ?: getenv('SUPABASE_DB_URL')
-    ?: getenv('NEON_DATABASE_URL')
-    ?: ''
-));
+if (!function_exists('read_env_var')) {
+    function read_env_var(string $variable_name): string
+    {
+        $value = getenv($variable_name);
+        if ($value !== false && trim((string)$value) !== '') {
+            return trim((string)$value);
+        }
+        if (isset($_ENV[$variable_name]) && trim((string)$_ENV[$variable_name]) !== '') {
+            return trim((string)$_ENV[$variable_name]);
+        }
+        if (isset($_SERVER[$variable_name]) && trim((string)$_SERVER[$variable_name]) !== '') {
+            return trim((string)$_SERVER[$variable_name]);
+        }
+        return '';
+    }
+}
 
-if ($cloudDatabaseUrl === '' && (getenv('SUPABASE_DB_HOST') || getenv('POSTGRES_HOST'))) {
-    $postgres_host = getenv('SUPABASE_DB_HOST') ?: getenv('POSTGRES_HOST');
-    $postgres_port = getenv('SUPABASE_DB_PORT') ?: 5432;
-    $postgres_user = rawurlencode(getenv('SUPABASE_DB_USER') ?: getenv('POSTGRES_USER') ?: 'postgres');
-    $postgres_pass = rawurlencode(getenv('SUPABASE_DB_PASS') ?: getenv('POSTGRES_PASSWORD') ?: '');
-    $postgres_name = ltrim(getenv('SUPABASE_DB_NAME') ?: getenv('POSTGRES_DATABASE') ?: 'postgres', '/');
+$cloudDatabaseUrl = (
+    read_env_var('DATABASE_URL')
+    ?: read_env_var('POSTGRES_URL')
+    ?: read_env_var('POSTGRES_PRISMA_URL')
+    ?: read_env_var('POSTGRES_URL_NON_POOLING')
+    ?: read_env_var('SUPABASE_DATABASE_URL')
+    ?: read_env_var('SUPABASE_DB_URL')
+    ?: read_env_var('NEON_DATABASE_URL')
+);
+
+if ($cloudDatabaseUrl === '' && (read_env_var('SUPABASE_DB_HOST') !== '' || read_env_var('POSTGRES_HOST') !== '')) {
+    $postgres_host = read_env_var('SUPABASE_DB_HOST') ?: read_env_var('POSTGRES_HOST');
+    $postgres_port = read_env_var('SUPABASE_DB_PORT') ?: '5432';
+    $postgres_user = rawurlencode(read_env_var('SUPABASE_DB_USER') ?: read_env_var('POSTGRES_USER') ?: 'postgres');
+    $postgres_pass = rawurlencode(read_env_var('SUPABASE_DB_PASS') ?: read_env_var('POSTGRES_PASSWORD'));
+    $postgres_name = ltrim(read_env_var('SUPABASE_DB_NAME') ?: read_env_var('POSTGRES_DATABASE') ?: 'postgres', '/');
     $cloudDatabaseUrl = "postgresql://{$postgres_user}:{$postgres_pass}@{$postgres_host}:{$postgres_port}/{$postgres_name}?sslmode=require";
 }
 
-$isRunningOnVercel = getenv('VERCEL') !== false || !empty($_ENV['VERCEL']) || is_dir('/var/task');
-$supabaseProjectUrl = trim((string)(getenv('SUPABASE_URL') ?: getenv('NEXT_PUBLIC_SUPABASE_URL') ?: ''));
-$supabaseApiKey = trim((string)(getenv('SUPABASE_SERVICE_ROLE_KEY') ?: getenv('SUPABASE_ANON_KEY') ?: getenv('NEXT_PUBLIC_SUPABASE_ANON_KEY') ?: ''));
+$isRunningOnVercel = read_env_var('VERCEL') !== '' || is_dir('/var/task');
+$supabaseProjectUrl = (
+    read_env_var('SUPABASE_URL')
+    ?: read_env_var('NEXT_PUBLIC_SUPABASE_URL')
+    ?: read_env_var('VITE_SUPABASE_URL')
+);
+$supabaseApiKey = (
+    read_env_var('SUPABASE_SERVICE_ROLE_KEY')
+    ?: read_env_var('SUPABASE_SECRET_KEY')
+    ?: read_env_var('SUPABASE_ANON_KEY')
+    ?: read_env_var('NEXT_PUBLIC_SUPABASE_ANON_KEY')
+    ?: read_env_var('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY')
+    ?: read_env_var('NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY')
+    ?: read_env_var('VITE_SUPABASE_ANON_KEY')
+);
 
 if ($cloudDatabaseUrl !== '' && preg_match('/^postgres(?:ql)?:\/\//i', $cloudDatabaseUrl)) {
     try {
@@ -564,14 +609,20 @@ if ($cloudDatabaseUrl !== '' && preg_match('/^postgres(?:ql)?:\/\//i', $cloudDat
     } catch (Throwable $connection_exception) {
         die('Supabase PostgreSQL connection failed: ' . $connection_exception->getMessage());
     }
-} elseif (($isRunningOnVercel || getenv('SUPABASE_USE_HTTP') === '1') && $supabaseProjectUrl !== '' && $supabaseApiKey !== '') {
+} elseif (($isRunningOnVercel || read_env_var('SUPABASE_USE_HTTP') === '1') && $supabaseProjectUrl !== '' && $supabaseApiKey !== '') {
     $conn = new SupabaseHttpRpcConnection($supabaseProjectUrl, $supabaseApiKey);
 } elseif ($isRunningOnVercel) {
+    $allEnvKeys = array_unique(array_merge(array_keys($_ENV), array_keys($_SERVER)));
+    $detectedDbKeys = array_values(array_filter($allEnvKeys, function (string $key): bool {
+        return (bool)preg_match('/(SUPABASE|POSTGRES|DATABASE|DB_)/i', $key);
+    }));
+    $detectedSummary = $detectedDbKeys ? implode(', ', $detectedDbKeys) : 'None found';
     http_response_code(500);
     die(
         '<div style="font-family:system-ui,sans-serif;max-width:640px;margin:48px auto;padding:24px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc;color:#0f172a;">'
         . '<h2 style="margin-top:0;color:#dc2626;">Vercel Database Environment Variables Missing</h2>'
         . '<p>Pay-wise is running on Vercel, but no Supabase database credentials were found in Vercel Environment Variables.</p>'
+        . '<p style="font-size:13px;color:#475569;"><strong>Detected DB-related env variable names:</strong> <code>' . e($detectedSummary) . '</code></p>'
         . '<p>Go to <strong>Vercel Dashboard &rarr; Project Settings &rarr; Environment Variables</strong> and add either:</p>'
         . '<ol style="line-height:1.7;">'
         . '<li><code>DATABASE_URL</code> (from Supabase Dashboard &rarr; Connect &rarr; Transaction Pooler URI), <strong>OR</strong></li>'
