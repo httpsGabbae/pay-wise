@@ -5,7 +5,7 @@ require_role('superadmin', 'finance');
 $id = (int)($_GET['id'] ?? 0);
 if ($id <= 0) { http_response_code(404); exit('<div class="notice err">Employee not found.</div>'); }
 
-$stmt = $conn->prepare('SELECT employee_id,employee_no,first_name,middle_name,last_name,department,position,employment_status,basic_salary FROM employees WHERE employee_id=? LIMIT 1');
+$stmt = $conn->prepare('SELECT employee_id,employee_no,first_name,middle_name,last_name,department,position,employment_status,salary_type,basic_salary FROM employees WHERE employee_id=? LIMIT 1');
 $stmt->bind_param('i', $id);
 $stmt->execute();
 $employee = $stmt->get_result()->fetch_assoc();
@@ -20,8 +20,10 @@ $stmt->bind_param('i', $id); $stmt->execute();
 if ($r = $stmt->get_result()->fetch_assoc()) { $summary['latest_net'] = $r['net_pay']; $summary['latest_period'] = $r['period_end']; }
 
 $name = trim($employee['first_name'].' '.$employee['middle_name'].' '.$employee['last_name']);
+$employeeSalaryType = normalize_salary_type($employee['salary_type'] ?? 'Monthly');
+$employeePayoutSchedule = get_salary_payout_schedule_label($employeeSalaryType);
 ?>
-<div class="salary-hero"><div class="salary-person"><div class="salary-avatar"><?php echo e(strtoupper(substr($employee['first_name'],0,1).substr($employee['last_name'],0,1))); ?></div><div><h3><?php echo e($name); ?></h3><p><?php echo e($employee['employee_no']); ?> · <?php echo e($employee['position'] ?: 'Unassigned'); ?></p></div></div><div class="salary-amount"><span>Basic salary</span><strong><?php echo money($employee['basic_salary']); ?></strong></div></div>
+<div class="salary-hero"><div class="salary-person"><div class="salary-avatar"><?php echo e(strtoupper(substr($employee['first_name'],0,1).substr($employee['last_name'],0,1))); ?></div><div><h3><?php echo e($name); ?></h3><p><?php echo e($employee['employee_no']); ?> · <?php echo e($employee['position'] ?: 'Unassigned'); ?> · <strong><?php echo e($employeeSalaryType); ?></strong> (<?php echo e($employeePayoutSchedule); ?>)</p></div></div><div class="salary-amount"><span><?php echo e($employeeSalaryType); ?> rate</span><strong><?php echo money($employee['basic_salary']); ?></strong></div></div>
 <div class="salary-grid">
     <div class="salary-stat"><span>Latest net</span><strong><?php echo money($summary['latest_net']); ?></strong><small><?php echo $summary['latest_period'] ? e(date('M d, Y', strtotime($summary['latest_period']))) : 'No payroll yet'; ?></small></div>
     <div class="salary-stat"><span><?php echo date('Y'); ?> gross</span><strong><?php echo money($summary['gross']); ?></strong><small><?php echo (int)$summary['count']; ?> record<?php echo ((int)$summary['count'] === 1 ? '' : 's'); ?></small></div>

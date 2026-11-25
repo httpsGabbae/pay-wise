@@ -49,6 +49,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare('UPDATE attendance SET employee_id=?, period_id=?, attendance_date=?, daily_rate=?, absences_count=?, tardiness_hours=?, undertime_hours=?, overtime_hours=?, computed_deduction=?, computed_overtime=?, status=?, remarks=? WHERE attendance_id=?');
                 $stmt->bind_param('iisdddddddssi', $empId, $periodId, $date, $dailyRate, $absences, $tardiness, $undertime, $overtime, $computedDed, $computedOt, $status, $remarks, $id);
                 if ($stmt->execute()) {
+                    run_automatic_due_payroll_payouts($conn, $date);
                     header('Location: attendance.php?saved=1');
                     exit;
                 }
@@ -57,6 +58,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt = $conn->prepare('INSERT INTO attendance (employee_id, period_id, attendance_date, daily_rate, absences_count, tardiness_hours, undertime_hours, overtime_hours, computed_deduction, computed_overtime, status, remarks) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE daily_rate=VALUES(daily_rate), absences_count=VALUES(absences_count), tardiness_hours=VALUES(tardiness_hours), undertime_hours=VALUES(undertime_hours), overtime_hours=VALUES(overtime_hours), computed_deduction=VALUES(computed_deduction), computed_overtime=VALUES(computed_overtime), status=VALUES(status), remarks=VALUES(remarks)');
                 $stmt->bind_param('iisdddddddss', $empId, $periodId, $date, $dailyRate, $absences, $tardiness, $undertime, $overtime, $computedDed, $computedOt, $status, $remarks);
                 if ($stmt->execute()) {
+                    run_automatic_due_payroll_payouts($conn, $date);
                     header('Location: attendance.php?saved=1');
                     exit;
                 }

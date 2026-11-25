@@ -111,9 +111,9 @@ $rows = $stmt->get_result();
                                         </td>
                                         <td>
                                             <div style="display: flex; gap: 0.35rem;">
-                                                <a class="btn btn-secondary btn-small" target="_blank" rel="noopener" href="../print/payroll.php?id=<?php echo (int)$r['payroll_id']; ?>" title="Download printable PDF payslip">
-                                                    PDF Payslip
-                                                </a>
+                                                <button type="button" class="btn btn-secondary btn-small" onclick="printEmployeePayslip(<?php echo (int)$r['payroll_id']; ?>)" title="Print payslip">
+                                                    Print Payslip
+                                                </button>
                                             </div>
                                         </td>
                                     </tr>
@@ -122,9 +122,34 @@ $rows = $stmt->get_result();
                         </table>
                     </div>
                 </section>
+                <div id="nativeEmployeePayrollPrintSheet" class="native-print-sheet" aria-hidden="true"></div>
             </div>
         </main>
     </div>
+    <script>
+    async function printEmployeePayslip(payrollId) {
+        const sheet = document.getElementById('nativeEmployeePayrollPrintSheet');
+        if (!sheet) return;
+        sheet.innerHTML = '<div class="print-loading">Preparing Lipa City Colleges payslip…</div>';
+        sheet.classList.add('active');
+        const cleanup = () => {
+            sheet.classList.remove('active');
+            sheet.innerHTML = '';
+        };
+        window.addEventListener('afterprint', cleanup, { once: true });
+        try {
+            const response = await fetch('../pages/payroll_preview.php?id=' + encodeURIComponent(payrollId), {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            });
+            if (!response.ok) throw new Error('Request failed');
+            sheet.innerHTML = await response.text();
+            window.print();
+        } catch (error) {
+            cleanup();
+            alert('Unable to prepare your payslip for printing.');
+        }
+    }
+    </script>
 </body>
 
 </html>

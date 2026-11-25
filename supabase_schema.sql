@@ -137,6 +137,8 @@ CREATE TABLE IF NOT EXISTS public.employees (
     position VARCHAR(120),
     employment_status VARCHAR(20) NOT NULL DEFAULT 'Regular'
         CHECK (employment_status IN ('Regular', 'Probationary', 'Contractual', 'Part-Time', 'Archived')),
+    salary_type VARCHAR(20) NOT NULL DEFAULT 'Monthly'
+        CHECK (salary_type IN ('Monthly', 'Every 15th Day', 'Daily', 'Per Hour')),
     basic_salary NUMERIC(12,2) NOT NULL DEFAULT 0.00,
     date_hired DATE,
     emergency_contact_name VARCHAR(100),
@@ -374,6 +376,7 @@ CREATE TABLE IF NOT EXISTS public.app_sessions (
 CREATE INDEX IF NOT EXISTS idx_app_sessions_updated_at ON public.app_sessions (updated_at);
 
 ALTER TABLE IF EXISTS public.employees ALTER COLUMN photo_path TYPE TEXT;
+ALTER TABLE IF EXISTS public.employees ADD COLUMN IF NOT EXISTS salary_type VARCHAR(20) NOT NULL DEFAULT 'Monthly';
 
 -- ------------------------------------------------------------
 -- 16. Triggers for updated_at

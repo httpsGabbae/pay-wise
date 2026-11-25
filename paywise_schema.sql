@@ -135,6 +135,7 @@ CREATE TABLE employees (
     department VARCHAR(150) DEFAULT NULL,
     position VARCHAR(120) DEFAULT NULL,
     employment_status ENUM('Regular','Probationary','Contractual','Part-Time') NOT NULL DEFAULT 'Regular',
+    salary_type ENUM('Monthly','Every 15th Day','Daily','Per Hour') NOT NULL DEFAULT 'Monthly',
     basic_salary DECIMAL(12,2) NOT NULL DEFAULT 0.00,
     date_hired DATE DEFAULT NULL,
     emergency_contact_name VARCHAR(100) DEFAULT NULL,

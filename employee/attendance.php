@@ -34,9 +34,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tardyHours = round($tardyMins / 60.0, 2);
             $status = $tardyMins > 0 ? 'Late' : 'Present';
 
-            // Daily rate and deduction calculation
-            $dailyRate = !empty($employee['basic_salary']) ? round((float)$employee['basic_salary'] / 22, 2) : 0.0;
-            $hourlyRate = $dailyRate > 0 ? ($dailyRate / 8.0) : 0.0;
+            // Daily and hourly rate calculation based on fixed salary type
+            $salaryType = normalize_salary_type($employee['salary_type'] ?? 'Monthly');
+            $baseRate = (float)($employee['basic_salary'] ?? 0);
+            if ($salaryType === 'Daily') {
+                $dailyRate = round($baseRate, 2);
+                $hourlyRate = $dailyRate > 0 ? ($dailyRate / 8.0) : 0.0;
+            } elseif ($salaryType === 'Per Hour') {
+                $hourlyRate = round($baseRate, 2);
+                $dailyRate = round($hourlyRate * 8.0, 2);
+            } else {
+                $dailyRate = $baseRate > 0 ? round($baseRate / 22.0, 2) : 0.0;
+                $hourlyRate = $dailyRate > 0 ? ($dailyRate / 8.0) : 0.0;
+            }
             $computedDed = round($tardyHours * $hourlyRate, 2);
 
             if ($record) {
@@ -62,8 +72,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $schedEnd = '17:00:00';
             $utMins = 0;
             $otHours = 0.0;
-            $dailyRate = !empty($record['daily_rate']) ? (float)$record['daily_rate'] : (!empty($employee['basic_salary']) ? round((float)$employee['basic_salary'] / 22, 2) : 0.0);
-            $hourlyRate = $dailyRate > 0 ? ($dailyRate / 8.0) : 0.0;
+            $salaryType = normalize_salary_type($employee['salary_type'] ?? 'Monthly');
+            $baseRate = (float)($employee['basic_salary'] ?? 0);
+            if (!empty($record['daily_rate'])) {
+                $dailyRate = (float)$record['daily_rate'];
+                $hourlyRate = $salaryType === 'Per Hour' ? round($baseRate, 2) : ($dailyRate > 0 ? ($dailyRate / 8.0) : 0.0);
+            } elseif ($salaryType === 'Daily') {
+                $dailyRate = round($baseRate, 2);
+                $hourlyRate = $dailyRate > 0 ? ($dailyRate / 8.0) : 0.0;
+            } elseif ($salaryType === 'Per Hour') {
+                $hourlyRate = round($baseRate, 2);
+                $dailyRate = round($hourlyRate * 8.0, 2);
+            } else {
+                $dailyRate = $baseRate > 0 ? round($baseRate / 22.0, 2) : 0.0;
+                $hourlyRate = $dailyRate > 0 ? ($dailyRate / 8.0) : 0.0;
+            }
 
             if ($now < $schedEnd) {
                 $utMins = (int)round((strtotime($schedEnd) - strtotime($now)) / 60);
@@ -79,6 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $up = $conn->prepare('UPDATE attendance SET time_out=?, undertime_hours=?, overtime_hours=?, computed_deduction=?, computed_overtime=? WHERE attendance_id=?');
             $up->bind_param('sddddi', $now, $utHours, $otHours, $computedDed, $computedOt, $record['attendance_id']);
             if ($up->execute()) {
+                run_automatic_due_payroll_payouts($conn, $today);
                 $message = 'Time out recorded at ' . date('h:i A', strtotime($now)) . '.';
             } else {
                 $error = 'Unable to record your time out. Please try again.';

@@ -3686,3 +3686,342 @@ body:not(.sidebar-collapsed) .employee-sidebar .brand-text {
     grid-template-columns: 1fr !important;
   }
 }
+
+/* ==========================================================================
+   Mobile Navigation Drawer & Compact Mobile Header (< 768px only)
+   Desktop (>= 768px) layout and sidebar stay completely unchanged.
+   ========================================================================== */
+.mobile-drawer-head {
+  display: contents;
+}
+
+.mobile-menu-btn,
+.mobile-header-brand,
+.mobile-drawer-close,
+.mobile-drawer-backdrop {
+  display: none;
+}
+
+@media (max-width: 767px) {
+  body.mobile-drawer-open {
+    overflow: hidden !important;
+  }
+
+  /* Full-width content: remove permanent left icon rail reservation */
+  .main,
+  body.sidebar-collapsed .main,
+  body:not(.sidebar-collapsed) .main {
+    margin-left: 0 !important;
+    width: 100% !important;
+    max-width: 100vw !important;
+    min-width: 0 !important;
+  }
+
+  /* Compact Mobile Top Header */
+  .topbar {
+    position: sticky !important;
+    top: 0 !important;
+    z-index: 1200 !important;
+    height: 58px !important;
+    padding: 0 12px !important;
+    gap: 8px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+  }
+
+  .topbar-left {
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  .mobile-menu-btn {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 40px !important;
+    height: 40px !important;
+    min-width: 40px !important;
+    padding: 0 !important;
+    border-radius: 10px !important;
+    border: 1px solid var(--border-soft, #d7e2e4) !important;
+    background: var(--surface-1, #ffffff) !important;
+    color: var(--text, #17323b) !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+    transition: background 0.15s ease, transform 0.15s ease !important;
+  }
+
+  .mobile-menu-btn:active {
+    transform: scale(0.96);
+  }
+
+  .mobile-header-brand {
+    display: inline-flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
+    text-decoration: none !important;
+  }
+
+  .mobile-header-logo {
+    width: 28px !important;
+    height: 28px !important;
+    border-radius: 7px !important;
+    object-fit: contain !important;
+    background: #ffffff !important;
+    padding: 2px !important;
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.12) !important;
+  }
+
+  .topbar .topbar-left .topbar-title {
+    font-size: 16px !important;
+    font-weight: 700 !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    min-width: 0 !important;
+  }
+
+  body.dark-mode .mobile-menu-btn {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.14) !important;
+    color: #f8fafc !important;
+  }
+
+  .topbar-actions {
+    gap: 6px !important;
+    flex-shrink: 0 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .topbar-actions .icon-btn {
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    padding: 0 !important;
+  }
+
+  .admin-chip {
+    padding: 2px !important;
+    width: 38px !important;
+    height: 38px !important;
+    min-width: 38px !important;
+    justify-content: center !important;
+    gap: 0 !important;
+  }
+
+  .admin-chip .avatar {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 32px !important;
+    height: 32px !important;
+    font-size: 13px !important;
+  }
+
+  .admin-chip .admin-name,
+  .admin-chip .admin-chevron,
+  .admin-name {
+    display: none !important;
+  }
+
+  /* Slide-in Mobile Navigation Drawer (reusing #appSidebar) */
+  #appSidebar.sidebar,
+  #appSidebar.sidebar.mobile-collapsed,
+  #appSidebar.sidebar.mobile-expanded,
+  body.sidebar-collapsed #appSidebar.sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: auto !important;
+    width: min(296px, 84vw) !important;
+    max-width: 84vw !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    padding: 16px 14px 24px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    -webkit-overflow-scrolling: touch !important;
+    z-index: 2000 !important;
+    transform: translateX(-105%) !important;
+    visibility: hidden !important;
+    box-shadow: none !important;
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1), visibility 0.28s ease !important;
+  }
+
+  body.mobile-drawer-open #appSidebar.sidebar,
+  body.mobile-drawer-open #appSidebar.sidebar.mobile-collapsed,
+  body.mobile-drawer-open #appSidebar.sidebar.mobile-expanded,
+  body.sidebar-collapsed.mobile-drawer-open #appSidebar.sidebar {
+    transform: translateX(0) !important;
+    visibility: visible !important;
+    box-shadow: 16px 0 42px rgba(5, 35, 42, 0.32) !important;
+  }
+
+  /* Hide desktop/legacy rail toggle & mobile-more inside the full drawer */
+  #appSidebar .sidebar-toggle,
+  #appSidebar .mobile-more-wrap {
+    display: none !important;
+  }
+
+  #appSidebar .mobile-drawer-head {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    gap: 10px !important;
+    margin-bottom: 18px !important;
+    padding-bottom: 12px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
+  }
+
+  #appSidebar .brand,
+  body.sidebar-collapsed #appSidebar .brand {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    gap: 10px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    min-width: 0 !important;
+    flex: 1 !important;
+  }
+
+  #appSidebar .brand-logo,
+  body.sidebar-collapsed #appSidebar .brand-logo {
+    width: 38px !important;
+    height: 38px !important;
+    flex-shrink: 0 !important;
+  }
+
+  #appSidebar .brand-text,
+  body.sidebar-collapsed #appSidebar .brand-text,
+  #appSidebar.mobile-collapsed .brand-text {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    min-width: 0 !important;
+  }
+
+  .mobile-drawer-close {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    padding: 0 !important;
+    border-radius: 9px !important;
+    border: 1px solid rgba(255, 255, 255, 0.18) !important;
+    background: rgba(255, 255, 255, 0.1) !important;
+    color: #ffffff !important;
+    cursor: pointer !important;
+    flex-shrink: 0 !important;
+  }
+
+  #appSidebar .nav,
+  body.sidebar-collapsed #appSidebar .nav {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 4px !important;
+  }
+
+  #appSidebar .nav-section,
+  body.sidebar-collapsed #appSidebar .nav-section,
+  #appSidebar.mobile-collapsed .nav-section {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 10px 0 4px !important;
+    padding: 4px 10px !important;
+    font-size: 10.5px !important;
+    letter-spacing: 0.7px !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+    transform: none !important;
+  }
+
+  #appSidebar .nav-link,
+  #appSidebar.mobile-collapsed .nav-link,
+  body.sidebar-collapsed #appSidebar .nav-link {
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: nowrap !important;
+    width: 100% !important;
+    max-width: none !important;
+    height: 44px !important;
+    min-height: 44px !important;
+    padding: 8px 12px !important;
+    justify-content: flex-start !important;
+    align-items: center !important;
+    gap: 12px !important;
+    font-size: 14px !important;
+    border-radius: 10px !important;
+  }
+
+  #appSidebar .nav-icon,
+  body.sidebar-collapsed #appSidebar .nav-icon {
+    position: static !important;
+    flex: 0 0 22px !important;
+    width: 22px !important;
+    height: 22px !important;
+    margin: 0 !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+  }
+
+  #appSidebar .nav-label,
+  #appSidebar.mobile-collapsed .nav-label,
+  body.sidebar-collapsed #appSidebar .nav-label {
+    position: static !important;
+    display: inline-block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+    width: auto !important;
+    max-width: none !important;
+    height: auto !important;
+    max-height: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 14px !important;
+    line-height: 1.25 !important;
+    transform: none !important;
+    pointer-events: auto !important;
+    overflow: visible !important;
+    white-space: nowrap !important;
+  }
+
+  .mobile-drawer-backdrop {
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(15, 23, 42, 0.45) !important;
+    backdrop-filter: blur(2px) !important;
+    -webkit-backdrop-filter: blur(2px) !important;
+    z-index: 1900 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: opacity 0.24s ease !important;
+  }
+
+  body.mobile-drawer-open .mobile-drawer-backdrop {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+}

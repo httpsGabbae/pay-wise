@@ -74,46 +74,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         continue;
                     }
 
-                    $basic = round((float)$emp['basic_salary'], 2);
-                    $allowances = round((float)($emp['allowances'] ?? 0), 2);
+                    $calculated = calculate_employee_salary_for_period($conn, $emp, $period['start_date'], $period['end_date'], $periodId);
+                    $basic = $calculated['basic_salary'];
+                    $allowances = $calculated['allowances'];
                     $otherEarnings = 0.00;
-
-                    // 1. Calculate active loan installment for this employee
-                    $loanInstallments = 0.00;
-                    $loanStmt = $conn->prepare('SELECT loan_id, installment, remaining_balance FROM employee_loans WHERE employee_id=? AND status="Active" AND remaining_balance > 0 AND repayment_start <= ?');
-                    $loanStmt->bind_param('is', $empId, $period['pay_date']);
-                    $loanStmt->execute();
-                    $loanRes = $loanStmt->get_result();
-                    while ($lRow = $loanRes->fetch_assoc()) {
-                        $inst = min((float)$lRow['installment'], (float)$lRow['remaining_balance']);
-                        $loanInstallments += $inst;
-                    }
-                    $loanInstallments = round($loanInstallments, 2);
-
-                    // 2. Calculate itemized other income for this period
-                    $otherIncStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS total_inc FROM other_income WHERE employee_id=? AND (period_id=? OR (pay_date BETWEEN ? AND ?))');
-                    $otherIncStmt->bind_param('iiss', $empId, $periodId, $period['start_date'], $period['end_date']);
-                    $otherIncStmt->execute();
-                    $otherIncAmount = round((float)$otherIncStmt->get_result()->fetch_assoc()['total_inc'], 2);
-
-                    // 3. Calculate itemized other deductions for this period
-                    $otherDedStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS total_ded FROM other_deductions WHERE employee_id=? AND (period_id=? OR (pay_date BETWEEN ? AND ?))');
-                    $otherDedStmt->bind_param('iiss', $empId, $periodId, $period['start_date'], $period['end_date']);
-                    $otherDedStmt->execute();
-                    $otherDedAmount = round((float)$otherDedStmt->get_result()->fetch_assoc()['total_ded'], 2);
-
-                    // 4. Calculate attendance deductions and overtime from attendance records
-                    $attStmt = $conn->prepare('SELECT COALESCE(SUM(computed_deduction), 0) AS total_att_ded, COALESCE(SUM(computed_overtime), 0) AS total_ot FROM attendance WHERE employee_id=? AND attendance_date BETWEEN ? AND ?');
-                    $attStmt->bind_param('iss', $empId, $period['start_date'], $period['end_date']);
-                    $attStmt->execute();
-                    $attRes = $attStmt->get_result()->fetch_assoc();
-                    $attDeduction = round((float)$attRes['total_att_ded'], 2);
-                    $otPay = round((float)$attRes['total_ot'], 2);
-
-                    $gross = round($basic + $allowances + $otherEarnings + $otPay + $otherIncAmount, 2);
-                    $totalDeductions = round($loanInstallments + $attDeduction + $otherDedAmount, 2);
-                    $net = round(max(0, $gross - $totalDeductions), 2);
-                    $notes = "Batch generated for Period {$period['period_code']}";
+                    $loanInstallments = $calculated['loan_deductions'];
+                    $otherIncAmount = $calculated['other_income'];
+                    $otherDedAmount = $calculated['other_deductions'];
+                    $attDeduction = $calculated['attendance_deductions'];
+                    $otPay = $calculated['overtime_pay'];
+                    $gross = $calculated['gross_pay'];
+                    $totalDeductions = $calculated['total_deductions'];
+                    $net = $calculated['net_pay'];
+                    $notes = "Batch generated for Period {$period['period_code']} ({$calculated['salary_type']} · {$calculated['calculation_summary']})";
 
                     $ins = $conn->prepare('INSERT INTO payroll_records (employee_id, period_id, period_start, period_end, basic_salary, allowances, other_earnings, overtime_pay, other_income_amount, deductions, loan_deductions, attendance_deductions, other_deductions_amount, gross_pay, net_pay, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, "Draft", ?)');
                     $ins->bind_param('iissddddddddddds', $empId, $periodId, $period['start_date'], $period['end_date'], $basic, $allowances, $otherEarnings, $otPay, $otherIncAmount, $totalDeductions, $loanInstallments, $attDeduction, $otherDedAmount, $gross, $net, $notes);

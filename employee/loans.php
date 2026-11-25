@@ -223,9 +223,9 @@ $repayments = $repayStmt->get_result();
                                         <td><strong style="color: var(--success, #059669);"><?php echo money($r['amount']); ?></strong></td>
                                         <td><span class="mini"><?php echo e($r['notes'] ?: 'Automated payroll deduction'); ?></span></td>
                                         <td style="text-align:right;">
-                                            <a href="../print/loan_payment_receipt.php?id=<?php echo (int)$r['repayment_id']; ?>" target="_blank" class="btn btn-small btn-secondary" style="padding:4px 9px; font-size:12px; display:inline-flex; align-items:center; gap:4px;">
-                                                <span>📄</span> View Receipt
-                                            </a>
+                                            <button type="button" onclick="printUrlInPopup('../print/loan_payment_receipt.php?id=<?php echo (int)$r['repayment_id']; ?>')" class="btn btn-small btn-secondary" style="padding:4px 9px; font-size:12px; display:inline-flex; align-items:center; gap:4px;">
+                                                <span>📄</span> Print Receipt
+                                            </button>
                                         </td>
                                     </tr>
                                 <?php endwhile; endif; ?>

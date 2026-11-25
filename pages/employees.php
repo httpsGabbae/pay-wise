@@ -59,7 +59,7 @@ $totalPages = max(1, (int)ceil($totalEmployeesCount / $recordsPerPage));
 if ($currentPage > $totalPages) $currentPage = $totalPages;
 $offset = ($currentPage - 1) * $recordsPerPage;
 
-$sql = "SELECT employee_id,employee_no,first_name,middle_name,last_name,photo_path,department,position,employment_status,basic_salary,created_at FROM employees $where ORDER BY last_name,first_name LIMIT $recordsPerPage OFFSET $offset";
+$sql = "SELECT employee_id,employee_no,first_name,middle_name,last_name,photo_path,department,position,employment_status,salary_type,basic_salary,created_at FROM employees $where ORDER BY last_name,first_name LIMIT $recordsPerPage OFFSET $offset";
 $stmt = $conn->prepare($sql);
 if ($params) $stmt->bind_param($types, ...$params);
 $stmt->execute();
@@ -125,7 +125,10 @@ while ($row = $result->fetch_assoc()) $employees[] = $row;
                                 <td><span class="employee-no"><?php echo e($row['employee_no']); ?></span></td>
                                 <td><?php echo e($row['department'] ?: '—'); ?></td>
                                 <td><?php echo e($row['position'] ?: '—'); ?></td>
-                                <td><span class="badge <?php echo ['Regular' => 'badge-ok', 'Probationary' => 'badge-info', 'Contractual' => 'badge-violet', 'Part-Time' => 'badge-neutral'][$row['employment_status']] ?? 'badge-neutral'; ?>"><?php echo e($row['employment_status']); ?></span></td>
+                                <td>
+                                    <span class="badge <?php echo ['Regular' => 'badge-ok', 'Probationary' => 'badge-info', 'Contractual' => 'badge-violet', 'Part-Time' => 'badge-neutral'][$row['employment_status']] ?? 'badge-neutral'; ?>"><?php echo e($row['employment_status']); ?></span>
+                                    <div class="mini" style="margin-top:3px;"><?php echo e(normalize_salary_type($row['salary_type'] ?? 'Monthly')); ?></div>
+                                </td>
                                 <td class="action-col">
                                     <div class="icon-actions">
                                         <button type="button" class="icon-action view" title="View record" aria-label="View record" onclick="openEmployeePreview(<?php echo (int)$row['employee_id']; ?>)"><?php echo ui_icon('eye'); ?></button>

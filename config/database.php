@@ -123,6 +123,15 @@ if (!class_exists('SupabasePgResult')) {
         {
             return $this->database_rows[$this->row_cursor_position++] ?? null;
         }
+
+        public function data_seek(int $offset = 0): bool
+        {
+            if ($offset < 0 || $offset > $this->num_rows) {
+                return false;
+            }
+            $this->row_cursor_position = $offset;
+            return true;
+        }
     }
 
     class SupabasePgStatement
@@ -678,6 +687,40 @@ if (session_status() === PHP_SESSION_NONE) {
         ]);
     }
     session_start();
+}
+
+if (!function_exists('calculate_period_basic_salary')) {
+    function calculate_period_basic_salary(float $monthly_basic_salary, string $period_start, string $period_end, string $pay_cycle = 'auto'): array
+    {
+        $monthly_basic = round(max(0.0, $monthly_basic_salary), 2);
+        $start_timestamp = $period_start !== '' ? strtotime($period_start) : false;
+        $end_timestamp = $period_end !== '' ? strtotime($period_end) : false;
+        $days_covered = ($start_timestamp !== false && $end_timestamp !== false && $end_timestamp >= $start_timestamp)
+            ? (int)round(($end_timestamp - $start_timestamp) / 86400) + 1
+            : 30;
+
+        if ($pay_cycle === 'semi_monthly') {
+            $resolved_cycle = 'semi_monthly';
+        } elseif ($pay_cycle === 'monthly') {
+            $resolved_cycle = 'monthly';
+        } else {
+            $resolved_cycle = ($days_covered <= 16) ? 'semi_monthly' : 'monthly';
+        }
+
+        $cutoff_basic_salary = ($resolved_cycle === 'semi_monthly')
+            ? round($monthly_basic / 2, 2)
+            : $monthly_basic;
+
+        return [
+            'monthly_basic_salary' => $monthly_basic,
+            'cutoff_basic_salary' => $cutoff_basic_salary,
+            'pay_cycle' => $resolved_cycle,
+            'pay_cycle_label' => $resolved_cycle === 'semi_monthly'
+                ? 'Semi-Monthly (Every 15th · 50%)'
+                : 'Monthly (Full Month · 100%)',
+            'days_covered' => $days_covered,
+        ];
+    }
 }
 
 if (!function_exists('dept_color_key')) {

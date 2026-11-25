@@ -394,7 +394,7 @@ $showAdd = isset($_GET['new']) && $_GET['new'] === '1';
                                         <td style="text-align:right; font-weight:700; color:#059669;"><?php echo money($rep['amount']); ?></td>
                                         <td><span class="mini"><?php echo e($rep['notes'] ?: 'No notes'); ?></span></td>
                                         <td style="text-align:right; white-space:nowrap;">
-                                            <a href="../print/loan_payment_receipt.php?id=<?php echo (int)$rep['repayment_id']; ?>" target="_blank" class="btn btn-small btn-secondary" style="padding:3px 8px; font-size:11px;" title="Print Official Receipt">📄 Receipt</a>
+                                            <button type="button" onclick="printUrlInPopup('../print/loan_payment_receipt.php?id=<?php echo (int)$rep['repayment_id']; ?>')" class="btn btn-small btn-secondary" style="padding:3px 8px; font-size:11px;" title="Print Official Receipt">📄 Print Receipt</button>
                                             <a href="loans.php?view_repayments=<?php echo (int)$selectedLoan['loan_id']; ?>&edit_repayment=<?php echo (int)$rep['repayment_id']; ?>#repayment-section" class="btn btn-small btn-secondary" style="padding:3px 8px; font-size:11px;">Edit</a>
                                             <form method="post" style="display:inline;" onsubmit="return confirm('Delete this payment of <?php echo money($rep['amount']); ?>? The remaining balance will be increased.');">
                                                 <?php echo csrf_field(); ?>

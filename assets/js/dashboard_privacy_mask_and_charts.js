@@ -81,18 +81,29 @@ document.addEventListener('DOMContentLoaded', function () {
     positionTooltip(event);
   }
 
-  function positionTooltip(event) {
+  function positionTooltip(event, anchorElement) {
     var tooltipWidth = chartTooltip.offsetWidth;
     var tooltipHeight = chartTooltip.offsetHeight;
-    var pageX = event.pageX + 12;
-    var pageY = event.pageY - tooltipHeight - 8;
+    var baseX = event.pageX;
+    var baseY = event.pageY;
 
-    // Prevent overflow off the right edge of window
-    if (pageX + tooltipWidth > window.innerWidth - 16) {
-      pageX = event.pageX - tooltipWidth - 12;
+    if ((!baseX && !baseY) && anchorElement) {
+      var rect = anchorElement.getBoundingClientRect();
+      baseX = rect.left + (rect.width / 2) + window.scrollX;
+      baseY = rect.top + window.scrollY;
     }
-    if (pageY < 10) {
-      pageY = event.pageY + 16;
+
+    var pageX = baseX + 12;
+    var pageY = baseY - tooltipHeight - 10;
+
+    if (pageX + tooltipWidth > window.scrollX + window.innerWidth - 12) {
+      pageX = baseX - tooltipWidth - 12;
+    }
+    if (pageX < window.scrollX + 12) {
+      pageX = window.scrollX + 12;
+    }
+    if (pageY < window.scrollY + 10) {
+      pageY = baseY + 18;
     }
 
     chartTooltip.style.left = pageX + 'px';
@@ -103,49 +114,74 @@ document.addEventListener('DOMContentLoaded', function () {
     chartTooltip.style.display = 'none';
   }
 
-  // Payroll Bar Chart Hover
+  document.addEventListener('click', function (event) {
+    if (!event.target.closest('.quickroll-bar-interactive-group, .quickroll-request-point-dot')) {
+      hideTooltip();
+    }
+  });
+
+  function buildPayrollTooltipHtml(barGroup) {
+    var period = barGroup.getAttribute('data-period') || 'Pay Period';
+    var net = barGroup.getAttribute('data-net') || '₱ 0.00';
+    var gross = barGroup.getAttribute('data-gross') || '₱ 0.00';
+    var deductions = barGroup.getAttribute('data-deductions') || '₱ 0.00';
+    var records = barGroup.getAttribute('data-records') || '0';
+
+    return '<strong>' + period + ' (' + records + ' staff)</strong>' +
+           '<div>Net Payout: ' + net + '</div>' +
+           '<div style="color:#9ca3af;font-size:10px;">Gross: ' + gross + ' · Ded: ' + deductions + '</div>';
+  }
+
+  // Payroll Bar Chart Hover & Mobile Tap
   var payrollBarGroups = document.querySelectorAll('.quickroll-bar-interactive-group');
   payrollBarGroups.forEach(function (barGroup) {
     barGroup.addEventListener('mouseenter', function (event) {
-      var period = barGroup.getAttribute('data-period') || 'Pay Period';
-      var net = barGroup.getAttribute('data-net') || '₱ 0.00';
-      var gross = barGroup.getAttribute('data-gross') || '₱ 0.00';
-      var deductions = barGroup.getAttribute('data-deductions') || '₱ 0.00';
-      var records = barGroup.getAttribute('data-records') || '0';
-
-      var tooltipHtml = '<strong>' + period + ' (' + records + ' staff)</strong>' +
-                        '<div>Net Payout: ' + net + '</div>' +
-                        '<div style="color:#9ca3af;font-size:10px;">Gross: ' + gross + ' · Ded: ' + deductions + '</div>';
-      showTooltip(tooltipHtml, event);
+      showTooltip(buildPayrollTooltipHtml(barGroup), event);
     });
 
     barGroup.addEventListener('mousemove', function (event) {
-      positionTooltip(event);
+      positionTooltip(event, barGroup);
     });
 
     barGroup.addEventListener('mouseleave', function () {
       hideTooltip();
     });
+
+    barGroup.addEventListener('click', function (event) {
+      event.stopPropagation();
+      chartTooltip.innerHTML = buildPayrollTooltipHtml(barGroup);
+      chartTooltip.style.display = 'block';
+      positionTooltip(event, barGroup);
+    });
   });
 
-  // Requests Line Chart Point Hover
+  // Requests Line Chart Point Hover & Mobile Tap
   var requestPointDots = document.querySelectorAll('.quickroll-request-point-dot');
   requestPointDots.forEach(function (dot) {
-    dot.addEventListener('mouseenter', function (event) {
+    function buildRequestTooltipHtml() {
       var dateLabel = dot.getAttribute('data-date') || 'Date';
       var count = dot.getAttribute('data-count') || '0';
+      return '<strong>' + dateLabel + '</strong>' +
+             '<div>Requests / Exceptions: ' + count + '</div>';
+    }
 
-      var tooltipHtml = '<strong>' + dateLabel + '</strong>' +
-                        '<div>Requests / Exceptions: ' + count + '</div>';
-      showTooltip(tooltipHtml, event);
+    dot.addEventListener('mouseenter', function (event) {
+      showTooltip(buildRequestTooltipHtml(), event);
     });
 
     dot.addEventListener('mousemove', function (event) {
-      positionTooltip(event);
+      positionTooltip(event, dot);
     });
 
     dot.addEventListener('mouseleave', function () {
       hideTooltip();
+    });
+
+    dot.addEventListener('click', function (event) {
+      event.stopPropagation();
+      chartTooltip.innerHTML = buildRequestTooltipHtml();
+      chartTooltip.style.display = 'block';
+      positionTooltip(event, dot);
     });
   });
 });

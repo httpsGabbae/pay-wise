@@ -39,6 +39,49 @@ document.addEventListener('DOMContentLoaded', function () {
     const passwordForm = document.getElementById('changePasswordForm');
     const passwordMessage = document.getElementById('passwordMessage');
 
+    const mobileMenuButton = document.getElementById('mobileMenuButton');
+    const mobileDrawerClose = document.getElementById('mobileDrawerClose');
+    const mobileDrawerBackdrop = document.getElementById('mobileDrawerBackdrop');
+    const drawerQuery = window.matchMedia('(max-width: 767px)');
+    const isDrawerViewport = () => drawerQuery.matches;
+
+    function setMobileDrawerOpen(isOpen) {
+        if (!sidebar) return;
+        const shouldOpen = Boolean(isOpen) && isDrawerViewport();
+        body.classList.toggle('mobile-drawer-open', shouldOpen);
+        if (mobileMenuButton) {
+            mobileMenuButton.setAttribute('aria-expanded', shouldOpen ? 'true' : 'false');
+        }
+        if (mobileDrawerBackdrop) {
+            mobileDrawerBackdrop.setAttribute('aria-hidden', shouldOpen ? 'false' : 'true');
+        }
+        if (shouldOpen && mobileDrawerClose) {
+            mobileDrawerClose.focus();
+        } else if (!shouldOpen && mobileMenuButton && document.activeElement && sidebar.contains(document.activeElement)) {
+            mobileMenuButton.focus();
+        }
+    }
+
+    mobileMenuButton?.addEventListener('click', function (event) {
+        event.stopPropagation();
+        setMobileDrawerOpen(!body.classList.contains('mobile-drawer-open'));
+    });
+
+    mobileDrawerClose?.addEventListener('click', function (event) {
+        event.stopPropagation();
+        setMobileDrawerOpen(false);
+    });
+
+    mobileDrawerBackdrop?.addEventListener('click', function () {
+        setMobileDrawerOpen(false);
+    });
+
+    document.addEventListener('keydown', function (event) {
+        if (event.key === 'Escape' && body.classList.contains('mobile-drawer-open')) {
+            setMobileDrawerOpen(false);
+        }
+    });
+
     const mobileQuery = window.matchMedia('(max-width: 820px)');
     const isMobile = () => mobileQuery.matches;
     const savedSidebar = localStorage.getItem('paywiseSidebarCollapsed');
@@ -51,6 +94,9 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function syncMobileSidebarState() {
+        if (isDrawerViewport()) {
+            return;
+        }
         const mobile = isMobile();
         const expanded = mobile && !body.classList.contains('sidebar-collapsed');
 
@@ -82,28 +128,31 @@ document.addEventListener('DOMContentLoaded', function () {
         updateSidebarButton();
     });
 
-    // Navigation links must NEVER toggle the sidebar on mobile. Preserve the
-    // current rail/drawer state across the page navigation. This prevents a
-    // tap on Dashboard, Employees, Attendance, Payroll, etc. from briefly
-    // opening the drawer and then collapsing it again.
     document.querySelectorAll('.sidebar .nav-link, .employee-sidebar .nav-link').forEach(function (link) {
         link.addEventListener('click', function () {
+            if (isDrawerViewport()) {
+                setMobileDrawerOpen(false);
+                return;
+            }
             if (!isMobile()) return;
             const collapsed = body.classList.contains('sidebar-collapsed');
             localStorage.setItem('paywiseMobileSidebarExpanded', collapsed ? 'false' : 'true');
         }, true);
     });
 
-    // The sidebar itself is not a toggle target. Only the dedicated arrow
-    // button may change collapsed/expanded state.
     sidebar?.addEventListener('click', function (event) {
         const link = event.target.closest('.nav-link');
         if (link) event.stopPropagation();
     });
 
     function handleViewportChange() {
-        if (isMobile() && localStorage.getItem('paywiseMobileSidebarExpanded') !== 'true') {
+        if (!isDrawerViewport() && body.classList.contains('mobile-drawer-open')) {
+            setMobileDrawerOpen(false);
+        }
+        if (isMobile() && !isDrawerViewport() && localStorage.getItem('paywiseMobileSidebarExpanded') !== 'true') {
             body.classList.add('sidebar-collapsed');
+        } else if (!isMobile()) {
+            body.classList.toggle('sidebar-collapsed', localStorage.getItem('paywiseSidebarCollapsed') === 'true');
         }
         syncMobileSidebarState();
         updateSidebarButton();
@@ -247,3 +296,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     updateSidebarButton();
 });
+
+window.printUrlInPopup = function (documentUrl) {
+    const existingFrame = document.getElementById('paywiseHiddenPrintFrame');
+    if (existingFrame) existingFrame.remove();
+
+    const printFrame = document.createElement('iframe');
+    printFrame.id = 'paywiseHiddenPrintFrame';
+    printFrame.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden;';
+    printFrame.onload = function () {
+        try {
+            printFrame.contentWindow.focus();
+            printFrame.contentWindow.print();
+        } catch (err) {
+            alert('Unable to open the print dialog.');
+        }
+        setTimeout(function () {
+            printFrame.remove();
+        }, 1500);
+    };
+    printFrame.src = documentUrl;
+    document.body.appendChild(printFrame);
+};

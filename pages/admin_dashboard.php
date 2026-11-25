@@ -161,11 +161,11 @@ $formatted_welcome_date = date('l, d F Y');
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <link rel="icon" type="image/png" href="../assets/favicon.png?v=lcc1">
   <title>Lipa City Colleges · Dashboard</title>
-  <link rel="stylesheet" href="../assets/css/app.css?v=20261112-clean1">
+  <link rel="stylesheet" href="../assets/css/app.css?v=20261125-mob1">
   <link rel="stylesheet" href="../assets/css/apple-system.css?v=20261112-clean1">
-  <link rel="stylesheet" href="../assets/css/quickroll_executive_dashboard_styling.css?v=3">
-  <script src="../assets/js/app.js?v=20261112-clean1" defer></script>
-  <script src="../assets/js/dashboard_privacy_mask_and_charts.js?v=4" defer></script>
+  <link rel="stylesheet" href="../assets/css/quickroll_executive_dashboard_styling.css?v=20261125-mob1">
+  <script src="../assets/js/app.js?v=20261125-mob1" defer></script>
+  <script src="../assets/js/dashboard_privacy_mask_and_charts.js?v=20261125-mob1" defer></script>
 </head>
 <body>
 <div class="app">
@@ -258,11 +258,11 @@ $formatted_welcome_date = date('l, d F Y');
             
             <div class="quickroll-payroll-chart-container">
               <?php if (empty($payroll_history_bars)): ?>
-                <div style="height:170px; display:flex; align-items:center; justify-content:center; color:#9ca3af; font-size:13px;">
+                <div class="quickroll-chart-empty-state">
                   No payroll periods recorded yet.
                 </div>
               <?php else: ?>
-                <svg class="quickroll-bars-svg" viewBox="0 0 450 170" preserveAspectRatio="none">
+                <svg class="quickroll-bars-svg" viewBox="0 0 450 170" preserveAspectRatio="xMidYMid meet">
                   <!-- Grid Guidelines -->
                   <line x1="30" y1="20" x2="440" y2="20" class="quickroll-grid-line" />
                   <line x1="30" y1="65" x2="440" y2="65" class="quickroll-grid-line" />

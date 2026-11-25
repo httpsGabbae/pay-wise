@@ -47,6 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $department = trim($_POST['department'] ?? '');
     $position = trim($_POST['position'] ?? '');
     $status = $_POST['employment_status'] ?? 'Regular';
+    $salaryType = normalize_salary_type($_POST['salary_type'] ?? 'Monthly');
     $salary = (float)($_POST['basic_salary'] ?? 0);
     $dateHired = trim($_POST['date_hired'] ?? '') ?: null;
     $emergencyName = trim($_POST['emergency_contact_name'] ?? '');
@@ -92,14 +93,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($error === '') {
         if ($id > 0) {
-            $sql = 'UPDATE employees SET portal_password=?,photo_path=?,first_name=?,middle_name=?,last_name=?,gender=?,birth_date=?,email=?,contact_number=?,civil_status=?,nationality=?,religion=?,permanent_address=?,present_address=?,sss_no=?,philhealth_no=?,pagibig_no=?,tin_no=?,atm_no=?,department=?,position=?,employment_status=?,basic_salary=?,date_hired=?,emergency_contact_name=?,emergency_contact_phone=?,emergency_contact_address=?,dependent_name=?,dependent_relationship=?,dependent_birth_date=?,education_background=?,character_reference=? WHERE employee_id=?';
+            $sql = 'UPDATE employees SET portal_password=?,photo_path=?,first_name=?,middle_name=?,last_name=?,gender=?,birth_date=?,email=?,contact_number=?,civil_status=?,nationality=?,religion=?,permanent_address=?,present_address=?,sss_no=?,philhealth_no=?,pagibig_no=?,tin_no=?,atm_no=?,department=?,position=?,employment_status=?,salary_type=?,basic_salary=?,date_hired=?,emergency_contact_name=?,emergency_contact_phone=?,emergency_contact_address=?,dependent_name=?,dependent_relationship=?,dependent_birth_date=?,education_background=?,character_reference=? WHERE employee_id=?';
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param('sssssssssssssssssssssssdssssssssi', $portal, $photoPath, $first, $middle, $last, $gender, $birth, $email, $contact, $civil, $nationality, $religion, $permanent, $present, $sss, $phil, $pagibig, $tin, $atm, $department, $position, $status, $salary, $dateHired, $emergencyName, $emergencyPhone, $emergencyAddress, $dependentName, $dependentRelationship, $dependentBirth, $education, $reference, $id);
+            $stmt->bind_param('sssssssssssssssssssssssdsssssssssi', $portal, $photoPath, $first, $middle, $last, $gender, $birth, $email, $contact, $civil, $nationality, $religion, $permanent, $present, $sss, $phil, $pagibig, $tin, $atm, $department, $position, $status, $salaryType, $salary, $dateHired, $emergencyName, $emergencyPhone, $emergencyAddress, $dependentName, $dependentRelationship, $dependentBirth, $education, $reference, $id);
         } else {
             $employeeNo = next_employee_no($conn);
-            $sql = 'INSERT INTO employees(employee_no,portal_password,photo_path,first_name,middle_name,last_name,gender,birth_date,email,contact_number,civil_status,nationality,religion,permanent_address,present_address,sss_no,philhealth_no,pagibig_no,tin_no,atm_no,department,position,employment_status,basic_salary,date_hired,emergency_contact_name,emergency_contact_phone,emergency_contact_address,dependent_name,dependent_relationship,dependent_birth_date,education_background,character_reference) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
+            $sql = 'INSERT INTO employees(employee_no,portal_password,photo_path,first_name,middle_name,last_name,gender,birth_date,email,contact_number,civil_status,nationality,religion,permanent_address,present_address,sss_no,philhealth_no,pagibig_no,tin_no,atm_no,department,position,employment_status,salary_type,basic_salary,date_hired,emergency_contact_name,emergency_contact_phone,emergency_contact_address,dependent_name,dependent_relationship,dependent_birth_date,education_background,character_reference) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)';
             $stmt = $conn->prepare($sql);
-            $stmt->bind_param('sssssssssssssssssssssssdsssssssss', $employeeNo, $portal, $photoPath, $first, $middle, $last, $gender, $birth, $email, $contact, $civil, $nationality, $religion, $permanent, $present, $sss, $phil, $pagibig, $tin, $atm, $department, $position, $status, $salary, $dateHired, $emergencyName, $emergencyPhone, $emergencyAddress, $dependentName, $dependentRelationship, $dependentBirth, $education, $reference);
+            $stmt->bind_param('ssssssssssssssssssssssssdsssssssss', $employeeNo, $portal, $photoPath, $first, $middle, $last, $gender, $birth, $email, $contact, $civil, $nationality, $religion, $permanent, $present, $sss, $phil, $pagibig, $tin, $atm, $department, $position, $status, $salaryType, $salary, $dateHired, $emergencyName, $emergencyPhone, $emergencyAddress, $dependentName, $dependentRelationship, $dependentBirth, $education, $reference);
         }
 
         if ($stmt->execute()) {
@@ -224,7 +225,16 @@ if ($positionResult) {
                                 </select>
                             </div>
                             <div class="field"><label>Status</label><select name="employment_status"><?php foreach (['Regular', 'Probationary', 'Contractual', 'Part-Time'] as $status): ?><option value="<?php echo $status; ?>" <?php echo ($employee['employment_status'] ?? 'Regular') === $status ? 'selected' : ''; ?>><?php echo $status; ?></option><?php endforeach; ?></select></div>
-                            <div class="field"><label>Basic salary (₱)</label><input type="number" min="0" step="0.01" name="basic_salary" value="<?php echo field_value($employee, 'basic_salary'); ?>"></div>
+                            <div class="field">
+                                <label>Salary type <span class="required">*</span></label>
+                                <select name="salary_type" id="salary_type" required>
+                                    <?php $currentSalaryType = normalize_salary_type($employee['salary_type'] ?? 'Monthly'); ?>
+                                    <?php foreach (get_fixed_salary_types() as $typeValue => $typeDescription): ?>
+                                        <option value="<?php echo e($typeValue); ?>" <?php echo $currentSalaryType === $typeValue ? 'selected' : ''; ?>><?php echo e($typeDescription); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                            <div class="field"><label id="salary_rate_label">Basic salary / Rate (₱)</label><input type="number" min="0" step="0.01" name="basic_salary" value="<?php echo field_value($employee, 'basic_salary'); ?>"></div>
                             <div class="field"><label>Date hired</label><input type="date" name="date_hired" value="<?php echo field_value($employee, 'date_hired'); ?>"></div>
                             <div class="field"><label>Photo <span class="mini">JPG/PNG, max 2MB</span></label><input type="file" name="employee_photo" accept=".jpg,.jpeg,.png,image/jpeg,image/png"></div>
                         </div>
@@ -295,6 +305,23 @@ if ($positionResult) {
         }
         departmentSelect.addEventListener('change', function() { loadPositions(false); });
         loadPositions(true);
+
+        const salaryTypeSelect = document.getElementById('salary_type');
+        const salaryRateLabel = document.getElementById('salary_rate_label');
+        const salaryRateLabels = {
+            'Monthly': 'Monthly Basic Salary (₱)',
+            'Every 15th Day': 'Monthly Salary — ½ Paid 15th & Month-End (₱)',
+            'Daily': 'Daily Shift Rate (₱)',
+            'Per Hour': 'Hourly Rate (₱)'
+        };
+        function updateSalaryRateLabel() {
+            if (!salaryTypeSelect || !salaryRateLabel) return;
+            salaryRateLabel.textContent = salaryRateLabels[salaryTypeSelect.value] || 'Basic salary / Rate (₱)';
+        }
+        if (salaryTypeSelect) {
+            salaryTypeSelect.addEventListener('change', updateSalaryRateLabel);
+            updateSalaryRateLabel();
+        }
     </script>
 <div id="nativeEmployeePrintSheet" class="native-print-sheet" aria-hidden="true"></div>
 <script>

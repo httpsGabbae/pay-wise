@@ -25,7 +25,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'calc_employee') {
         exit;
     }
 
-    $eStmt = $conn->prepare('SELECT employee_id, basic_salary FROM employees WHERE employee_id=? LIMIT 1');
+    $eStmt = $conn->prepare('SELECT employee_id, salary_type, basic_salary FROM employees WHERE employee_id=? LIMIT 1');
     $eStmt->bind_param('i', $empId);
     $eStmt->execute();
     $emp = $eStmt->get_result()->fetch_assoc();
@@ -33,9 +33,6 @@ if (isset($_GET['api']) && $_GET['api'] === 'calc_employee') {
         echo json_encode(['success' => false, 'error' => 'Employee not found']);
         exit;
     }
-
-    $basic = (float)$emp['basic_salary'];
-    $allowances = 0.0;
 
     if ($periodId > 0) {
         $pStmt = $conn->prepare('SELECT start_date, end_date, pay_date FROM payroll_periods WHERE period_id=? LIMIT 1');
@@ -48,73 +45,33 @@ if (isset($_GET['api']) && $_GET['api'] === 'calc_employee') {
         }
     }
 
-    // 1. Loans: sum active loan installments
-    if ($end !== '') {
-        $lStmt = $conn->prepare('SELECT COALESCE(SUM(installment), 0) AS loan_sum FROM employee_loans WHERE employee_id=? AND status="Active" AND remaining_balance > 0 AND (repayment_start IS NULL OR repayment_start <= ?)');
-        $lStmt->bind_param('is', $empId, $end);
-    } else {
-        $lStmt = $conn->prepare('SELECT COALESCE(SUM(installment), 0) AS loan_sum FROM employee_loans WHERE employee_id=? AND status="Active" AND remaining_balance > 0');
-        $lStmt->bind_param('i', $empId);
-    }
-    $lStmt->execute();
-    $loanSum = round((float)$lStmt->get_result()->fetch_assoc()['loan_sum'], 2);
-
-    // 2. Attendance deductions and overtime
-    $attDed = 0.0;
-    $otPay = 0.0;
-    if ($start !== '' && $end !== '') {
-        $aStmt = $conn->prepare('SELECT COALESCE(SUM(computed_deduction), 0) AS att_ded, COALESCE(SUM(computed_overtime), 0) AS ot_pay FROM attendance WHERE employee_id=? AND attendance_date BETWEEN ? AND ?');
-        $aStmt->bind_param('iss', $empId, $start, $end);
-        $aStmt->execute();
-        $aRes = $aStmt->get_result()->fetch_assoc();
-        $attDed = round((float)$aRes['att_ded'], 2);
-        $otPay = round((float)$aRes['ot_pay'], 2);
+    $salaryType = normalize_salary_type($emp['salary_type'] ?? 'Monthly');
+    $defaultWindow = get_default_payout_window_for_salary_type($salaryType);
+    if ($start === '' || $end === '') {
+        $start = $defaultWindow['period_start'];
+        $end = $defaultWindow['period_end'];
     }
 
-    // 3. Other income
-    $otherInc = 0.0;
-    if ($periodId > 0) {
-        $oiStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS oi_sum FROM other_income WHERE employee_id=? AND (period_id=? OR (pay_date BETWEEN ? AND ?))');
-        $oiStmt->bind_param('iiss', $empId, $periodId, $start, $end);
-        $oiStmt->execute();
-        $otherInc = round((float)$oiStmt->get_result()->fetch_assoc()['oi_sum'], 2);
-    } elseif ($start !== '' && $end !== '') {
-        $oiStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS oi_sum FROM other_income WHERE employee_id=? AND pay_date BETWEEN ? AND ?');
-        $oiStmt->bind_param('iss', $empId, $start, $end);
-        $oiStmt->execute();
-        $otherInc = round((float)$oiStmt->get_result()->fetch_assoc()['oi_sum'], 2);
-    }
-
-    // 4. Other deductions
-    $otherDed = 0.0;
-    if ($periodId > 0) {
-        $odStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS od_sum FROM other_deductions WHERE employee_id=? AND (period_id=? OR (pay_date BETWEEN ? AND ?))');
-        $odStmt->bind_param('iiss', $empId, $periodId, $start, $end);
-        $odStmt->execute();
-        $otherDed = round((float)$odStmt->get_result()->fetch_assoc()['od_sum'], 2);
-    } elseif ($start !== '' && $end !== '') {
-        $odStmt = $conn->prepare('SELECT COALESCE(SUM(amount), 0) AS od_sum FROM other_deductions WHERE employee_id=? AND pay_date BETWEEN ? AND ?');
-        $odStmt->bind_param('iss', $empId, $start, $end);
-        $odStmt->execute();
-        $otherDed = round((float)$odStmt->get_result()->fetch_assoc()['od_sum'], 2);
-    }
-
-    $totalDed = round($loanSum + $attDed + $otherDed, 2);
-    $gross = round($basic + $allowances + $otPay + $otherInc, 2);
-    $net = round(max(0, $gross - $totalDed), 2);
+    $calculated = calculate_employee_salary_for_period($conn, $emp, $start, $end, $periodId > 0 ? $periodId : null);
 
     echo json_encode([
         'success' => true,
-        'basic_salary' => $basic,
-        'allowances' => $allowances,
-        'overtime_pay' => $otPay,
-        'other_income' => $otherInc,
-        'loan_deductions' => $loanSum,
-        'attendance_deductions' => $attDed,
-        'other_deductions' => $otherDed,
-        'total_deductions' => $totalDed,
-        'gross_pay' => $gross,
-        'net_pay' => $net
+        'salary_type' => $calculated['salary_type'],
+        'payout_schedule' => $calculated['payout_schedule'],
+        'calculation_summary' => $calculated['calculation_summary'],
+        'default_period_start' => $defaultWindow['period_start'],
+        'default_period_end' => $defaultWindow['period_end'],
+        'stored_rate' => $calculated['stored_rate'],
+        'basic_salary' => $calculated['basic_salary'],
+        'allowances' => $calculated['allowances'],
+        'overtime_pay' => $calculated['overtime_pay'],
+        'other_income' => $calculated['other_income'],
+        'loan_deductions' => $calculated['loan_deductions'],
+        'attendance_deductions' => $calculated['attendance_deductions'],
+        'other_deductions' => $calculated['other_deductions'],
+        'total_deductions' => $calculated['total_deductions'],
+        'gross_pay' => $calculated['gross_pay'],
+        'net_pay' => $calculated['net_pay']
     ]);
     exit;
 }
@@ -199,6 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $periodId = !empty($_POST['period_id']) ? (int)$_POST['period_id'] : null;
         $start = $_POST['period_start'] ?? '';
         $end = $_POST['period_end'] ?? '';
+        $payCycle = $_POST['pay_cycle'] ?? 'auto';
         $allowances = round((float)($_POST['allowances'] ?? 0), 2);
         $otherEarnings = round((float)($_POST['other_earnings'] ?? 0), 2);
         $overtimePay = round((float)($_POST['overtime_pay'] ?? 0), 2);
@@ -232,7 +190,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Payroll amounts cannot be negative.';
             $showForm = true;
         } else {
-            $stmt = $conn->prepare('SELECT basic_salary FROM employees WHERE employee_id=? LIMIT 1');
+            $stmt = $conn->prepare('SELECT employee_id, salary_type, basic_salary FROM employees WHERE employee_id=? LIMIT 1');
             $stmt->bind_param('i', $employeeId);
             $stmt->execute();
             $employee = $stmt->get_result()->fetch_assoc();
@@ -241,7 +199,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'The selected employee was not found.';
                 $showForm = true;
             } else {
-                $basic = round((float)$employee['basic_salary'], 2);
+                $salaryCalc = calculate_employee_salary_for_period($conn, $employee, $start, $end, $periodId);
+                $basic = $salaryCalc['basic_salary'];
                 $gross = round($basic + $allowances + $otherEarnings + $overtimePay + $otherIncomeAmount, 2);
                 $net = round(max(0, $gross - $deductions), 2);
 
@@ -275,6 +234,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
+// Automatically generate due payouts based on each employee's fixed Salary Type
+// (Monthly end-of-month, Every 15th Day, Daily end-of-shift, Per Hour weekly)
+if (!$isHr && $_SERVER['REQUEST_METHOD'] === 'GET') {
+    $forceAutoSync = isset($_GET['sync_auto']) && $_GET['sync_auto'] === '1';
+    $lastSyncTs = (int)($_SESSION['last_auto_payroll_sync'] ?? 0);
+    if ($forceAutoSync || (time() - $lastSyncTs) >= 300) {
+        $autoResult = run_automatic_due_payroll_payouts($conn);
+        $_SESSION['last_auto_payroll_sync'] = time();
+        if ($autoResult['generated_count'] > 0) {
+            $message = 'Automatic payroll generated ' . $autoResult['generated_count'] . ' due payout(s) based on employee salary schedules.';
+        } elseif ($forceAutoSync) {
+            $message = 'All due scheduled payouts (Monthly, Every 15th Day, Daily, and Per Hour) are already up to date.';
+        }
+    }
+}
+
 if (isset($_GET['saved'])) {
     $message = 'Payroll record saved successfully.';
 }
@@ -296,25 +271,25 @@ $periodsList = $conn->query("SELECT period_id, period_code, start_date, end_date
 
 if ($isHr) {
     if ($periodFilter > 0) {
-        $stmt = $conn->prepare('SELECT p.payroll_id,p.employee_id,p.period_id,p.period_start,p.period_end,p.status,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id WHERE p.period_id=? ORDER BY p.payroll_id DESC');
+        $stmt = $conn->prepare('SELECT p.payroll_id,p.employee_id,p.period_id,p.period_start,p.period_end,p.status,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,e.salary_type,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id WHERE p.period_id=? ORDER BY p.payroll_id DESC');
         $stmt->bind_param('i', $periodFilter);
         $stmt->execute();
         $records = $stmt->get_result();
     } else {
-        $records = $conn->query('SELECT p.payroll_id,p.employee_id,p.period_id,p.period_start,p.period_end,p.status,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id ORDER BY p.payroll_id DESC');
+        $records = $conn->query('SELECT p.payroll_id,p.employee_id,p.period_id,p.period_start,p.period_end,p.status,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,e.salary_type,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id ORDER BY p.payroll_id DESC');
     }
 } else {
     if ($periodFilter > 0) {
-        $stmt = $conn->prepare('SELECT p.*,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id WHERE p.period_id=? ORDER BY p.payroll_id DESC');
+        $stmt = $conn->prepare('SELECT p.*,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,e.salary_type,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id WHERE p.period_id=? ORDER BY p.payroll_id DESC');
         $stmt->bind_param('i', $periodFilter);
         $stmt->execute();
         $records = $stmt->get_result();
     } else {
-        $records = $conn->query('SELECT p.*,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id ORDER BY p.payroll_id DESC');
+        $records = $conn->query('SELECT p.*,e.employee_no,e.first_name,e.middle_name,e.last_name,e.department,e.position,e.salary_type,pp.period_code FROM payroll_records p JOIN employees e ON e.employee_id=p.employee_id LEFT JOIN payroll_periods pp ON pp.period_id=p.period_id ORDER BY p.payroll_id DESC');
     }
 }
 
-$employees = $isHr ? false : $conn->query('SELECT employee_id,employee_no,first_name,last_name,basic_salary FROM employees ORDER BY last_name,first_name');
+$employees = $isHr ? false : $conn->query('SELECT employee_id,employee_no,first_name,last_name,salary_type,basic_salary FROM employees ORDER BY last_name,first_name');
 
 /* HR attendance-per-period: one query for the whole list, bucketed in PHP */
 $attByRecord = [];
@@ -384,6 +359,7 @@ if ($isHr && $records && $records->num_rows > 0) {
                     </div>
                     <?php if (!$isHr): ?>
                     <div class="print-tools">
+                        <a class="btn btn-secondary" href="payroll.php?sync_auto=1" title="Check and generate due payouts for Monthly, Every 15th Day, Daily, and Per Hour staff"><?php echo ui_icon('clock'); ?> Sync Auto-Payouts</a>
                         <a class="btn btn-secondary" href="payroll_periods.php"><?php echo ui_icon('calendar'); ?> Pay Periods</a>
                         <button type="button" class="btn btn-secondary" onclick="window.print()"><?php echo ui_icon('printer'); ?> Print</button>
                         <a class="btn btn-primary" href="payroll.php?add=1"><?php echo ui_icon('plus'); ?> New Payroll</a>
@@ -443,6 +419,7 @@ if ($isHr && $records && $records->num_rows > 0) {
                                     <th>Attendance</th>
                                     <th>Status</th>
                                     <?php else: ?>
+                                    <th>Basic Salary</th>
                                     <th>Gross</th>
                                     <th>Deductions</th>
                                     <th>Net Pay</th>
@@ -457,10 +434,14 @@ if ($isHr && $records && $records->num_rows > 0) {
                                         <?php if ($isHr): ?>
                                         <td colspan="6" class="empty">No payroll records found.</td>
                                         <?php else: ?>
-                                        <td colspan="9" class="empty">No payroll records found. Click <strong>New Payroll</strong> or generate a batch under <strong>Pay Periods</strong>.</td>
+                                        <td colspan="10" class="empty">No payroll records found. Click <strong>New Payroll</strong> or generate a batch under <strong>Pay Periods</strong>.</td>
                                         <?php endif; ?>
                                     </tr>
                                 <?php else: while ($row = $records->fetch_assoc()): ?>
+                                    <?php
+                                        $rowSalaryType = normalize_salary_type($row['salary_type'] ?? 'Monthly');
+                                        $rowCycleTag = $rowSalaryType . ' · ' . get_salary_payout_schedule_label($rowSalaryType);
+                                    ?>
                                     <tr>
                                         <td>
                                             <strong><?php echo e($row['last_name'] . ', ' . $row['first_name']); ?></strong>
@@ -482,6 +463,10 @@ if ($isHr && $records && $records->num_rows > 0) {
                                         <td><a class="dash-link" style="margin:0;padding:0;border:0" href="attendance.php"><?php echo e($attByRecord[(int)$row['payroll_id']] ?? 'No logs in period'); ?></a></td>
                                         <td><span class="badge"><?php echo e($row['status']); ?></span></td>
                                         <?php else: ?>
+                                        <td>
+                                            <strong><?php echo money($row['basic_salary']); ?></strong>
+                                            <div class="mini"><?php echo e($rowCycleTag); ?></div>
+                                        </td>
                                         <td><?php echo money($row['gross_pay']); ?></td>
                                         <td>
                                             <?php echo money($row['deductions']); ?>
@@ -505,12 +490,9 @@ if ($isHr && $records && $records->num_rows > 0) {
                                         </td>
                                         <td>
                                             <div class="icon-actions" style="display: flex; gap: 0.35rem;">
-                                                <button type="button" class="icon-action print" title="Print statement" aria-label="Print statement" onclick="printPayrollRecord(<?php echo (int)$row['payroll_id']; ?>); return false;">
+                                                <button type="button" class="icon-action print" title="Print payslip" aria-label="Print payslip" onclick="printPayrollRecord(<?php echo (int)$row['payroll_id']; ?>); return false;">
                                                     <?php echo ui_icon('printer'); ?>
                                                 </button>
-                                                <a class="icon-action" title="Download PDF Payslip" target="_blank" rel="noopener" href="../print/payroll.php?id=<?php echo (int)$row['payroll_id']; ?>" style="display: inline-flex; align-items: center; justify-content: center; text-decoration: none;">
-                                                    <?php echo ui_icon('file-chart'); ?>
-                                                </a>
                                             </div>
                                         </td>
                                         <?php endif; ?>
@@ -543,16 +525,30 @@ if ($isHr && $records && $records->num_rows > 0) {
                                         <select name="employee_id" id="employee_id" required>
                                             <option value="">Select employee</option>
                                             <?php while ($employee = $employees->fetch_assoc()): ?>
-                                                <option value="<?php echo (int)$employee['employee_id']; ?>" data-salary="<?php echo e($employee['basic_salary']); ?>" data-allowance="<?php echo e($employee['allowances'] ?? '0.00'); ?>">
-                                                    <?php echo e($employee['employee_no'] . ' — ' . $employee['last_name'] . ', ' . $employee['first_name']); ?>
+                                                <?php
+                                                    $empSalaryType = normalize_salary_type($employee['salary_type'] ?? 'Monthly');
+                                                    $empWindow = get_default_payout_window_for_salary_type($empSalaryType);
+                                                ?>
+                                                <option value="<?php echo (int)$employee['employee_id']; ?>"
+                                                    data-salary="<?php echo e($employee['basic_salary']); ?>"
+                                                    data-salary-type="<?php echo e($empSalaryType); ?>"
+                                                    data-payout-schedule="<?php echo e($empWindow['schedule_label']); ?>"
+                                                    data-default-start="<?php echo e($empWindow['period_start']); ?>"
+                                                    data-default-end="<?php echo e($empWindow['period_end']); ?>"
+                                                    data-allowance="<?php echo e($employee['allowances'] ?? '0.00'); ?>">
+                                                    <?php echo e($employee['employee_no'] . ' — ' . $employee['last_name'] . ', ' . $employee['first_name'] . ' [' . $empSalaryType . ']'); ?>
                                                 </option>
                                             <?php endwhile; ?>
                                         </select>
                                     </div>
                                     <div class="field full">
-                                        <label>Pay period</label>
+                                        <label>Fixed salary type & automatic payout schedule</label>
+                                        <input type="text" id="employee_salary_type_display" value="Select an employee to view their fixed salary type" readonly style="background: var(--bg-hover, #f1f5f9); font-weight: 600;">
+                                    </div>
+                                    <div class="field full">
+                                        <label>Pay period (optional)</label>
                                         <select name="period_id" id="period_id">
-                                            <option value="">Custom date range</option>
+                                            <option value="">Auto from employee's fixed salary schedule</option>
                                             <?php if ($periodsList): while ($pl = $periodsList->fetch_assoc()): ?>
                                                 <option value="<?php echo (int)$pl['period_id']; ?>" data-start="<?php echo e($pl['start_date']); ?>" data-end="<?php echo e($pl['end_date']); ?>">
                                                     <?php echo e($pl['period_code']); ?> (<?php echo date('M d, Y', strtotime($pl['start_date'])); ?> – <?php echo date('M d, Y', strtotime($pl['end_date'])); ?>)
@@ -566,7 +562,10 @@ if ($isHr && $records && $records->num_rows > 0) {
 
                                 <div class="section-title">Earnings</div>
                                 <div class="form-grid">
-                                    <div class="field"><label>Basic salary</label><input id="basic_salary" name="basic_salary" value="0.00" readonly style="background: var(--bg-hover, #f1f5f9);"></div>
+                                    <div class="field">
+                                        <label>Basic salary <span id="pay_cycle_badge" class="mini" style="font-weight:600;color:var(--accent,#0f766e);margin-left:4px;"></span></label>
+                                        <input id="basic_salary" name="basic_salary" value="0.00" readonly style="background: var(--bg-hover, #f1f5f9); font-weight: 700;">
+                                    </div>
                                     <div class="field"><label>Allowances</label><input type="number" min="0" step="0.01" name="allowances" id="allowances" value="0.00"></div>
                                     <div class="field"><label>Overtime pay</label><input type="number" min="0" step="0.01" name="overtime_pay" id="overtime_pay" value="0.00"></div>
                                     <div class="field"><label>Other income</label><input type="number" min="0" step="0.01" name="other_income_amount" id="other_income_amount" value="0.00"></div>
@@ -601,11 +600,51 @@ if ($isHr && $records && $records->num_rows > 0) {
 
     <?php if ($showForm): ?>
         <script>
-            async function fetchCalculations() {
+            function applyEmployeeFixedSchedule(autoFillDates) {
                 const empSelect = document.getElementById('employee_id');
                 const periodSelect = document.getElementById('period_id');
                 const startInput = document.getElementById('period_start');
                 const endInput = document.getElementById('period_end');
+                const typeDisplay = document.getElementById('employee_salary_type_display');
+                const badge = document.getElementById('pay_cycle_badge');
+                const opt = empSelect ? empSelect.options[empSelect.selectedIndex] : null;
+
+                if (!opt || !opt.value) {
+                    if (typeDisplay) typeDisplay.value = 'Select an employee to view their fixed salary type';
+                    if (badge) badge.textContent = '';
+                    document.getElementById('basic_salary').value = '0.00';
+                    updateTotals();
+                    return;
+                }
+
+                const salaryType = opt.dataset.salaryType || 'Monthly';
+                const payoutSchedule = opt.dataset.payoutSchedule || 'End of Month';
+                const storedRate = parseFloat(opt.dataset.salary || 0);
+
+                if (typeDisplay) {
+                    typeDisplay.value = salaryType + ' — Payout: ' + payoutSchedule + ' (Rate: ₱ ' + storedRate.toLocaleString('en-PH', { minimumFractionDigits: 2 }) + ')';
+                }
+
+                if (autoFillDates && (!periodSelect || !periodSelect.value)) {
+                    if (opt.dataset.defaultStart) startInput.value = opt.dataset.defaultStart;
+                    if (opt.dataset.defaultEnd) endInput.value = opt.dataset.defaultEnd;
+                }
+
+                const previewBasic = salaryType === 'Every 15th Day' ? (storedRate / 2) : storedRate;
+                document.getElementById('basic_salary').value = previewBasic.toFixed(2);
+                if (badge) {
+                    badge.textContent = '(' + salaryType + ')';
+                }
+                updateTotals();
+            }
+
+            async function fetchCalculations(autoFillDates) {
+                const empSelect = document.getElementById('employee_id');
+                const periodSelect = document.getElementById('period_id');
+                const startInput = document.getElementById('period_start');
+                const endInput = document.getElementById('period_end');
+
+                applyEmployeeFixedSchedule(Boolean(autoFillDates));
 
                 const empId = empSelect.value;
                 const periodId = periodSelect ? periodSelect.value : '';
@@ -629,6 +668,10 @@ if ($isHr && $records && $records->num_rows > 0) {
                     const data = await res.json();
                     if (data.success) {
                         document.getElementById('basic_salary').value = parseFloat(data.basic_salary).toFixed(2);
+                        const badge = document.getElementById('pay_cycle_badge');
+                        if (badge && data.calculation_summary) {
+                            badge.textContent = '(' + data.calculation_summary + ')';
+                        }
                         document.getElementById('allowances').value = parseFloat(data.allowances).toFixed(2);
                         document.getElementById('overtime_pay').value = parseFloat(data.overtime_pay).toFixed(2);
                         document.getElementById('other_income_amount').value = parseFloat(data.other_income).toFixed(2);
@@ -642,6 +685,14 @@ if ($isHr && $records && $records->num_rows > 0) {
                     console.error('Auto calc failed:', err);
                     updateTotals();
                 }
+            }
+
+            function syncTotalDeductions() {
+                const loanDed = parseFloat(document.getElementById('loan_deductions').value || 0);
+                const attDed = parseFloat(document.getElementById('attendance_deductions').value || 0);
+                const otherDed = parseFloat(document.getElementById('other_deductions_amount').value || 0);
+                document.getElementById('deductions').value = (loanDed + attDed + otherDed).toFixed(2);
+                updateTotals();
             }
 
             function updateTotals() {
@@ -677,20 +728,22 @@ if ($isHr && $records && $records->num_rows > 0) {
                     if (opt && opt.dataset.start && opt.dataset.end) {
                         document.getElementById('period_start').value = opt.dataset.start;
                         document.getElementById('period_end').value = opt.dataset.end;
+                        fetchCalculations(false);
+                    } else {
+                        fetchCalculations(true);
                     }
-                    fetchCalculations();
                 });
             }
 
-            document.getElementById('employee_id').addEventListener('change', fetchCalculations);
-            document.getElementById('period_start').addEventListener('change', fetchCalculations);
-            document.getElementById('period_end').addEventListener('change', fetchCalculations);
+            document.getElementById('employee_id').addEventListener('change', function() { fetchCalculations(true); });
+            document.getElementById('period_start').addEventListener('change', function() { fetchCalculations(false); });
+            document.getElementById('period_end').addEventListener('change', function() { fetchCalculations(false); });
 
             document.getElementById('allowances').addEventListener('input', updateTotals);
             document.getElementById('overtime_pay').addEventListener('input', updateTotals);
             document.getElementById('other_income_amount').addEventListener('input', updateTotals);
             document.getElementById('other_earnings').addEventListener('input', updateTotals);
-            document.getElementById('other_deductions_amount').addEventListener('input', updateTotals);
+            document.getElementById('other_deductions_amount').addEventListener('input', syncTotalDeductions);
             document.getElementById('deductions').addEventListener('input', updateTotals);
         </script>
     <?php endif; ?>

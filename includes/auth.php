@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/../config/database.php';
+require_once __DIR__ . '/calculate_and_automate_employee_salary_payouts.php';
 
 if (!isset($_SESSION['admin_id'])) {
     header('Location: ../login.php');

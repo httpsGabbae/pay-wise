@@ -60,12 +60,15 @@ function sidebar(string $active): void
         return in_array($role, $item[5], true);
     }));
 
-    echo '<aside class="sidebar" id="appSidebar">';
+    echo '<aside class="sidebar" id="appSidebar" aria-label="Main navigation">';
     echo '<button type="button" class="sidebar-toggle" id="sidebarToggle" aria-label="Toggle sidebar" title="Toggle sidebar">' . ui_icon('arrow-left') . '</button>';
+    echo '<div class="mobile-drawer-head">';
     echo '<a class="brand" href="../pages/admin_dashboard.php">';
     echo '<img class="brand-logo" src="../uploads/logo.png" alt="Lipa City Colleges">';
     echo '<div class="brand-text"><div class="brand-title">Lipa City Colleges</div><div class="brand-sub">HR & Payroll</div></div>';
     echo '</a>';
+    echo '<button type="button" class="mobile-drawer-close" id="mobileDrawerClose" aria-label="Close navigation menu">' . ui_icon('close') . '</button>';
+    echo '</div>';
 
     echo '<nav class="nav">';
     $lastSection = null;
@@ -99,6 +102,7 @@ function sidebar(string $active): void
     }
     echo '</div></div>';
     echo '</aside>';
+    echo '<div class="mobile-drawer-backdrop" id="mobileDrawerBackdrop" aria-hidden="true"></div>';
 }
 
 function topbar(string $title): void
@@ -110,6 +114,8 @@ function topbar(string $title): void
 
     echo '<header class="topbar">';
     echo '<div class="topbar-left">';
+    echo '<button type="button" class="mobile-menu-btn" id="mobileMenuButton" aria-label="Open navigation menu" aria-controls="appSidebar" aria-expanded="false"><svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>';
+    echo '<a class="mobile-header-brand" href="../pages/admin_dashboard.php" aria-label="Lipa City Colleges Dashboard"><img class="mobile-header-logo" src="../uploads/logo.png" alt="Lipa City Colleges"></a>';
     echo '<div class="topbar-title">' . e($title) . '</div>';
     echo '</div>';
 
